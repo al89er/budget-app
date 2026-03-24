@@ -8,7 +8,7 @@ import { getCategories } from '@/actions/category';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Plus, Edit2, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw } from 'lucide-react';
 import { Account, Category, Transaction } from '@prisma/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import useSWR from 'swr';
 
@@ -25,24 +25,26 @@ type TxData = {
   totalPages: number;
 };
 
-export default function TransactionsClient({ 
-  initialData, 
-  accounts: initialAccounts, 
-  categories: initialCategories 
-}: { 
-  initialData: TxData;
-  accounts: any[];
-  categories: any[];
-}) {
-  const { data } = useSWR(['transactions-list'], () => getTransactions(initialData.page || 1, 50), { fallbackData: initialData });
-  const { data: accounts } = useSWR('accounts', () => getAccounts(), { fallbackData: initialAccounts });
-  const { data: categories } = useSWR('categories', () => getCategories(), { fallbackData: initialCategories });
+export default function TransactionsClient() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pageParam = searchParams.get('page');
+  const page = pageParam ? parseInt(pageParam) : 1;
+  const type = searchParams.get('type') || undefined;
+  const categoryId = searchParams.get('categoryId') || undefined;
+  const accountId = searchParams.get('accountId') || undefined;
+
+  const { data } = useSWR(['transactions-list', page, type, categoryId, accountId], () => getTransactions(page, 50, { type, categoryId, accountId }), { suspense: true });
+  const { data: accounts } = useSWR('accounts', () => getAccounts(), { suspense: true });
+  const { data: categories } = useSWR('categories', () => getCategories(), { suspense: true });
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+
+  if (!data || !accounts || !categories) return null;
 
   // Form local state to dynamically adjust fields
   const editingTx = editingId ? data.transactions.find(t => t.id === editingId) : null;

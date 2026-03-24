@@ -1,21 +1,7 @@
-import { getTransactions } from '@/actions/transaction';
-import { getAccounts } from '@/actions/account';
-import { getCategories } from '@/actions/category';
 import TransactionsClient from './TransactionsClient';
+import { Suspense } from 'react';
 
-export default async function TransactionsPage(
-  props: { searchParams: Promise<{ page?: string; type?: string; categoryId?: string; accountId?: string }> }
-) {
-  const searchParams = await props.searchParams;
-  const page = searchParams.page ? parseInt(searchParams.page) : 1;
-  const { type, categoryId, accountId } = searchParams;
-
-  const [txData, accounts, categories] = await Promise.all([
-    getTransactions(page, 50, { type, categoryId, accountId }),
-    getAccounts(),
-    getCategories(),
-  ]);
-
+export default function TransactionsPage() {
   return (
     <div className="space-y-6">
       <div>
@@ -23,11 +9,9 @@ export default async function TransactionsPage(
         <p className="text-surface-500">Record and track your money movements.</p>
       </div>
 
-      <TransactionsClient 
-        initialData={txData} 
-        accounts={accounts} 
-        categories={categories} 
-      />
+      <Suspense fallback={<div className="h-64 flex items-center justify-center text-surface-500">Loading transactions...</div>}>
+        <TransactionsClient />
+      </Suspense>
     </div>
   );
 }

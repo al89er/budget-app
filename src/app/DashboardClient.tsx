@@ -4,34 +4,32 @@ import { Card, CardContent, CardHeader, CardTitle, Select } from '@/components/u
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, Calendar } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { getSummaryData, getBudgetVsActual } from '@/actions/summary';
 import { getAccounts } from '@/actions/account';
 import { getTransactions } from '@/actions/transaction';
+import { processDueRecurringTransactions } from '@/actions/recurring';
+import { useEffect } from 'react';
 
-export default function DashboardClient({ 
-  timeframe,
-  summary: initialSummary, 
-  accounts: initialAccounts, 
-  recentTransactions: initialRecentTransactions, 
-  budgetVsActual: initialBudgetVsActual 
-}: { 
-  timeframe: string,
-  summary: any, 
-  accounts: any[], 
-  recentTransactions: any[], 
-  budgetVsActual: any[] 
-}) {
+export default function DashboardClient() { 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const timeframe = searchParams.get('timeframe') || 'this_month';
   
-  const { data: summary } = useSWR(['summary', timeframe], () => getSummaryData(timeframe), { fallbackData: initialSummary });
-  const { data: accounts } = useSWR('accounts', () => getAccounts(), { fallbackData: initialAccounts });
-  const { data: recentTransactions } = useSWR('recentTx', () => getTransactions(1, 10).then(res => res.transactions), { fallbackData: initialRecentTransactions });
+  const { data: summary } = useSWR(['summary', timeframe], () => getSummaryData(timeframe), { suspense: true });
+  const { data: accounts } = useSWR('accounts', () => getAccounts(), { suspense: true });
+  const { data: recentTransactions } = useSWR('recentTx', () => getTransactions(1, 10).then(res => res.transactions), { suspense: true });
   const { data: budgetVsActual } = useSWR(['budgetVsActual', timeframe], () => {
     const d = new Date();
     return getBudgetVsActual(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-  }, { fallbackData: initialBudgetVsActual });
+  }, { suspense: true });
+
+  useEffect(() => {
+    processDueRecurringTransactions();
+  }, []);
+
+  if (!summary || !accounts || !recentTransactions || !budgetVsActual) return null;
   
   const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e'];
 
