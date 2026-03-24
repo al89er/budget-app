@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { Card, CardContent, Button, Modal, Input, Select } from '@/components/ui';
 import { createTransaction, updateTransaction, deleteTransaction, getTransactions } from '@/actions/transaction';
 import { getAccounts } from '@/actions/account';
@@ -26,6 +26,8 @@ type TxData = {
 };
 
 export default function TransactionsClient() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const router = useRouter();
   const searchParams = useSearchParams();
   const pageParam = searchParams.get('page');
@@ -34,9 +36,9 @@ export default function TransactionsClient() {
   const categoryId = searchParams.get('categoryId') || undefined;
   const accountId = searchParams.get('accountId') || undefined;
 
-  const { data } = useSWR(['transactions-list', page, type, categoryId, accountId], () => getTransactions(page, 50, { type, categoryId, accountId }), { suspense: true });
-  const { data: accounts } = useSWR('accounts', () => getAccounts(), { suspense: true });
-  const { data: categories } = useSWR('categories', () => getCategories(), { suspense: true });
+  const { data } = useSWR(mounted ? ['transactions-list', page, type, categoryId, accountId] : null, () => getTransactions(page, 50, { type, categoryId, accountId }));
+  const { data: accounts } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
+  const { data: categories } = useSWR(mounted ? 'categories' : null, () => getCategories());
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -44,7 +46,14 @@ export default function TransactionsClient() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  if (!data || !accounts || !categories) return null;
+  if (!mounted || !data || !accounts || !categories) {
+    return (
+      <div className="h-64 flex flex-col items-center justify-center text-surface-500 animate-pulse">
+        <RefreshCw className="h-8 w-8 animate-spin mb-4 text-brand-500" />
+        <p>Fetching transactions...</p>
+      </div>
+    );
+  }
 
   // Form local state to dynamically adjust fields
   const editingTx = editingId ? data.transactions.find(t => t.id === editingId) : null;

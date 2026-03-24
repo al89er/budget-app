@@ -1,9 +1,7 @@
-import { getAccounts } from '@/actions/account';
 import AccountsClient from './AccountsClient';
+import { Suspense } from 'react';
 
-export default async function AccountsPage() {
-  const accounts = await getAccounts();
-
+export default function AccountsPage() {
   return (
     <div className="space-y-6">
       <div>
@@ -11,7 +9,9 @@ export default async function AccountsPage() {
         <p className="text-surface-500">Manage your financial accounts and view current balances.</p>
       </div>
 
-      <AccountsClient initialAccounts={accounts} />
+      <Suspense fallback={<div className="h-64 flex items-center justify-center text-surface-500">Loading accounts...</div>}>
+        <AccountsClient />
+      </Suspense>
     </div>
   );
 }

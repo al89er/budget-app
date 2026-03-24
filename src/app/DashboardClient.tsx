@@ -10,26 +10,35 @@ import { getSummaryData, getBudgetVsActual } from '@/actions/summary';
 import { getAccounts } from '@/actions/account';
 import { getTransactions } from '@/actions/transaction';
 import { processDueRecurringTransactions } from '@/actions/recurring';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function DashboardClient() { 
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const timeframe = searchParams.get('timeframe') || 'this_month';
   
-  const { data: summary } = useSWR(['summary', timeframe], () => getSummaryData(timeframe), { suspense: true });
-  const { data: accounts } = useSWR('accounts', () => getAccounts(), { suspense: true });
-  const { data: recentTransactions } = useSWR('recentTx', () => getTransactions(1, 10).then(res => res.transactions), { suspense: true });
-  const { data: budgetVsActual } = useSWR(['budgetVsActual', timeframe], () => {
+  const { data: summary } = useSWR(mounted ? ['summary', timeframe] : null, () => getSummaryData(timeframe));
+  const { data: accounts } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
+  const { data: recentTransactions } = useSWR(mounted ? 'recentTx' : null, () => getTransactions(1, 10).then(res => res.transactions));
+  const { data: budgetVsActual } = useSWR(mounted ? ['budgetVsActual', timeframe] : null, () => {
     const d = new Date();
     return getBudgetVsActual(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-  }, { suspense: true });
+  });
 
   useEffect(() => {
+    setMounted(true);
     processDueRecurringTransactions();
   }, []);
 
-  if (!summary || !accounts || !recentTransactions || !budgetVsActual) return null;
+  if (!mounted || !summary || !accounts || !recentTransactions || !budgetVsActual) {
+    return (
+      <div className="h-64 flex flex-col items-center justify-center text-surface-500 animate-pulse">
+        <RefreshCw className="h-8 w-8 animate-spin mb-4 text-brand-500" />
+        <p>Syncing your financial data...</p>
+      </div>
+    );
+  }
   
   const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e'];
 

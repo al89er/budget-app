@@ -99,6 +99,8 @@ export async function deleteCategory(id: string) {
         where: { id },
         data: { isActive: false }
       });
+      revalidatePath('/categories');
+      revalidatePath('/transactions');
       return { success: true, message: 'Category deactivated because it is in use.' };
     }
 

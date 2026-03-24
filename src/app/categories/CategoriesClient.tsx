@@ -3,19 +3,35 @@
 import { useState, useTransition } from 'react';
 import { Card, CardContent, Button, Modal, Input, Select } from '@/components/ui';
 import { createCategory, updateCategory, deleteCategory } from '@/actions/category';
-import { PieChart, Plus, Edit2, Trash2 } from 'lucide-react';
+import { PieChart, Plus, Edit2, Trash2, RefreshCw } from 'lucide-react';
 import { Category } from '@prisma/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
+import useSWR, { mutate } from 'swr';
+import { getCategories } from '@/actions/category';
+import { useEffect } from 'react';
 
-export default function CategoriesClient({ initialCategories }: { initialCategories: Category[] }) {
-  const categories = initialCategories;
+export default function CategoriesClient() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const { data: categories } = useSWR(mounted ? 'categories' : null, () => getCategories());
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  if (!mounted || !categories) {
+    return (
+      <div className="h-64 flex flex-col items-center justify-center text-surface-500 animate-pulse">
+        <RefreshCw className="h-8 w-8 animate-spin mb-4 text-brand-500" />
+        <p>Loading categories...</p>
+      </div>
+    );
+  }
 
   // Group by type
   const incomeCategories = categories.filter(c => c.type === 'INCOME');
@@ -49,9 +65,9 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
         setError(res.error);
         toast.error(res.error);
       } else {
+        mutate('categories');
         setIsModalOpen(false);
         toast.success(editingId ? "Category updated successfully" : "Category created successfully");
-        router.refresh();
       }
     });
   }
@@ -68,10 +84,10 @@ export default function CategoriesClient({ initialCategories }: { initialCategor
       if (res.error) {
         toast.error(res.error);
       } else {
+        mutate('categories');
         if (res.message) toast.success(res.message);
         else toast.success("Category deleted successfully");
         setDeleteConfirmId(null);
-        router.refresh();
       }
     });
   }

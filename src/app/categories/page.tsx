@@ -1,9 +1,7 @@
-import { getCategories } from '@/actions/category';
 import CategoriesClient from './CategoriesClient';
+import { Suspense } from 'react';
 
-export default async function CategoriesPage() {
-  const categories = await getCategories();
-
+export default function CategoriesPage() {
   return (
     <div className="space-y-6">
       <div>
@@ -11,7 +9,9 @@ export default async function CategoriesPage() {
         <p className="text-surface-500">Organize your income, expenses, and transfers.</p>
       </div>
 
-      <CategoriesClient initialCategories={categories} />
+      <Suspense fallback={<div className="h-64 flex items-center justify-center text-surface-500">Loading categories...</div>}>
+        <CategoriesClient />
+      </Suspense>
     </div>
   );
 }

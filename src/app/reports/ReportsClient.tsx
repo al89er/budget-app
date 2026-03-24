@@ -8,23 +8,34 @@ import {
 } from 'recharts';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
+import { useEffect, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import useSWR from 'swr';
 import { getMonthlySummary, getRecentTrends, getBudgetVsActual } from '@/actions/summary';
 import { getAccounts } from '@/actions/account';
 import { getCategories } from '@/actions/category';
 
 export default function ReportsClient() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentMonth = searchParams.get('month') || format(new Date(), 'yyyy-MM');
 
-  const { data: summary } = useSWR(['monthly-summary', currentMonth], () => getMonthlySummary(currentMonth), { suspense: true });
-  const { data: trends } = useSWR('recent-trends', () => getRecentTrends(6), { suspense: true });
-  const { data: budgetVsActual } = useSWR(['budgetVsActual', currentMonth], () => getBudgetVsActual(currentMonth), { suspense: true });
-  const { data: accounts } = useSWR('accounts', () => getAccounts(), { suspense: true });
-  const { data: categories } = useSWR('categories', () => getCategories(), { suspense: true });
+  const { data: summary } = useSWR(mounted ? ['monthly-summary', currentMonth] : null, () => getMonthlySummary(currentMonth));
+  const { data: trends } = useSWR(mounted ? 'recent-trends' : null, () => getRecentTrends(6));
+  const { data: budgetVsActual } = useSWR(mounted ? ['budgetVsActual', currentMonth] : null, () => getBudgetVsActual(currentMonth));
+  const { data: accounts } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
+  const { data: categories } = useSWR(mounted ? 'categories' : null, () => getCategories());
 
-  if (!summary || !trends || !budgetVsActual || !accounts || !categories) return null;
+  if (!mounted || !summary || !trends || !budgetVsActual || !accounts || !categories) {
+    return (
+      <div className="h-64 flex flex-col items-center justify-center text-surface-500 animate-pulse">
+        <RefreshCw className="h-8 w-8 animate-spin mb-4 text-brand-500" />
+        <p>Crunching report data...</p>
+      </div>
+    );
+  }
 
   const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e'];
 

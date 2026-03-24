@@ -4,21 +4,37 @@ import { useState, useTransition } from 'react';
 import { Card, CardContent, Button, Modal, Input, Select } from '@/components/ui';
 import { createAccount, updateAccount, setAccountActive } from '@/actions/account';
 import { formatCurrency } from '@/lib/utils';
-import { Wallet, Plus, Edit2, Archive, ArchiveRestore } from 'lucide-react';
+import { Wallet, Plus, Edit2, Archive, ArchiveRestore, RefreshCw } from 'lucide-react';
 import { Account } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import useSWR, { mutate } from 'swr';
+import { getAccounts } from '@/actions/account';
+import { useEffect } from 'react';
 
 type AccountWithBalance = Account & { currentBalance: number };
 
-export default function AccountsClient({ initialAccounts }: { initialAccounts: AccountWithBalance[] }) {
-  const accounts = initialAccounts;
+export default function AccountsClient() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const { data: accounts } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [confirmToggleId, setConfirmToggleId] = useState<{ id: string, currentStatus: boolean } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  if (!mounted || !accounts) {
+    return (
+      <div className="h-64 flex flex-col items-center justify-center text-surface-500 animate-pulse">
+        <RefreshCw className="h-8 w-8 animate-spin mb-4 text-brand-500" />
+        <p>Updating account totals...</p>
+      </div>
+    );
+  }
 
   async function openCreateModal() {
     setEditingId(null);
@@ -47,9 +63,9 @@ export default function AccountsClient({ initialAccounts }: { initialAccounts: A
         setError(res.error);
         toast.error(res.error);
       } else {
+        mutate('accounts');
         setIsModalOpen(false);
         toast.success(editingId ? "Account updated successfully" : "Account created successfully");
-        router.refresh();
       }
     });
   }
@@ -64,9 +80,9 @@ export default function AccountsClient({ initialAccounts }: { initialAccounts: A
     
     startTransition(async () => {
       await setAccountActive(id, !currentStatus);
+      mutate('accounts');
       toast.success(`Account ${currentStatus ? 'deactivated' : 'activated'} successfully`);
       setConfirmToggleId(null);
-      router.refresh();
     });
   }
 
