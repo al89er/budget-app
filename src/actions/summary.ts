@@ -65,6 +65,32 @@ export async function getSummaryData(timeframe: string = 'this_month') {
 
   const netCashflow = totalIncome - totalExpense;
 
+  // Calculate Total Credit Card Debt (Global, not timeframe bound)
+  const ccAccounts = await prisma.account.findMany({ where: { type: 'CREDIT_CARD', isActive: true } });
+  const ccAccountIds = ccAccounts.map(a => a.id);
+  
+  const [ccIncomes, ccExpenses] = await Promise.all([
+    prisma.transaction.groupBy({
+      by: ['destinationAccountId'],
+      _sum: { amount: true },
+      where: { destinationAccountId: { in: ccAccountIds } }
+    }),
+    prisma.transaction.groupBy({
+      by: ['sourceAccountId'],
+      _sum: { amount: true },
+      where: { sourceAccountId: { in: ccAccountIds } }
+    })
+  ]);
+
+  const ccIncomeMap = new Map(ccIncomes.map(i => [i.destinationAccountId as string, i._sum.amount || 0]));
+  const ccExpenseMap = new Map(ccExpenses.map(e => [e.sourceAccountId as string, e._sum.amount || 0]));
+
+  const totalCreditCardDebt = ccAccounts.reduce((acc, account) => {
+    const balance = account.openingBalance + (ccIncomeMap.get(account.id) || 0) - (ccExpenseMap.get(account.id) || 0);
+    // Debt is positive value of negative balance
+    return acc + (balance < 0 ? Math.abs(balance) : 0);
+  }, 0);
+
   // Formatting for Recharts
   const spendingByCategoryData = Object.values(expensesByCategory).sort((a, b) => b.amount - a.amount);
 
@@ -72,6 +98,7 @@ export async function getSummaryData(timeframe: string = 'this_month') {
     totalIncome,
     totalExpense,
     netCashflow,
+    totalCreditCardDebt,
     spendingByCategoryData,
   };
 }
@@ -120,6 +147,31 @@ export async function getMonthlySummary(monthString: string) {
 
   const netCashflow = totalIncome - totalExpense;
 
+  // CC-Specific Monthly Metrics
+  const ccTransactions = await prisma.transaction.findMany({
+    where: {
+      date: { gte: start, lte: end },
+      OR: [
+        { sourceAccount: { type: 'CREDIT_CARD' } },
+        { destinationAccount: { type: 'CREDIT_CARD' } }
+      ]
+    }
+  });
+
+  let ccSpending = 0;
+  let ccRepayment = 0;
+
+  ccTransactions.forEach(tx => {
+    // Spending: Expenses from CC
+    if (tx.type === 'EXPENSE' && tx.sourceAccountId) {
+       ccSpending += tx.amount;
+    }
+    // Repayment: Transfers INTO CC
+    if (tx.type === 'TRANSFER' && tx.destinationAccountId) {
+       ccRepayment += tx.amount;
+    }
+  });
+
   // Formatting for Recharts
   const spendingByCategoryData = Object.values(expensesByCategory).sort((a, b) => b.amount - a.amount);
 
@@ -127,6 +179,8 @@ export async function getMonthlySummary(monthString: string) {
     totalIncome,
     totalExpense,
     netCashflow,
+    ccSpending,
+    ccRepayment,
     spendingByCategoryData,
   };
 }
@@ -183,17 +237,33 @@ export async function getRecentTrends(monthsCount = 6) {
     trendsPromises.push(
       prisma.transaction.findMany({
         where: { date: { gte: start, lte: end } },
+        include: {
+          sourceAccount: { select: { type: true } },
+          destinationAccount: { select: { type: true } }
+        }
       }).then(txs => {
         let income = 0;
         let expense = 0;
+        let ccSpending = 0;
+        let ccRepayment = 0;
+        
         txs.forEach(t => {
           if (t.type === 'INCOME') income += t.amount;
-          else if (t.type === 'EXPENSE') expense += t.amount;
+          else if (t.type === 'EXPENSE') {
+            expense += t.amount;
+            if (t.sourceAccount?.type === 'CREDIT_CARD') ccSpending += t.amount;
+          }
+          else if (t.type === 'TRANSFER') {
+            if (t.destinationAccount?.type === 'CREDIT_CARD') ccRepayment += t.amount;
+          }
         });
+
         return {
           month: monthString,
           income,
           expense,
+          ccSpending,
+          ccRepayment,
           net: income - expense
         };
       })

@@ -55,6 +55,7 @@ model Transaction {
   destinationAccountId String?
   destinationAccount   Account?  @relation("DestinationAccount", fields: [destinationAccountId], references: [id])
   notes                String?
+  isRetrospective      Boolean  @default(false)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

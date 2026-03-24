@@ -49,7 +49,10 @@ export async function getTransactionById(id: string) {
 export async function createTransaction(formData: FormData) {
   const data = Object.fromEntries(formData.entries());
   
-  const result = TransactionSchema.safeParse(data);
+  const result = TransactionSchema.safeParse({
+    ...data,
+    isRetrospective: data.isRetrospective === 'on' || data.isRetrospective === 'true',
+  });
 
   if (!result.success) {
     // Return formatted error messages
@@ -68,6 +71,7 @@ export async function createTransaction(formData: FormData) {
         sourceAccountId: result.data.sourceAccountId || null,
         destinationAccountId: result.data.destinationAccountId || null,
         notes: result.data.notes,
+        isRetrospective: result.data.isRetrospective,
       },
     });
     revalidatePath('/transactions');
@@ -83,7 +87,10 @@ export async function createTransaction(formData: FormData) {
 export async function updateTransaction(id: string, formData: FormData) {
   const data = Object.fromEntries(formData.entries());
   
-  const result = TransactionSchema.safeParse(data);
+  const result = TransactionSchema.safeParse({
+    ...data,
+    isRetrospective: data.isRetrospective === 'on' || data.isRetrospective === 'true',
+  });
 
   if (!result.success) {
     const mappedErrors = Object.entries(result.error.flatten().fieldErrors).map(([key, value]) => `${key}: ${value}`).join(', ');
@@ -102,6 +109,7 @@ export async function updateTransaction(id: string, formData: FormData) {
         sourceAccountId: result.data.sourceAccountId || null,
         destinationAccountId: result.data.destinationAccountId || null,
         notes: result.data.notes,
+        isRetrospective: result.data.isRetrospective,
       },
     });
     revalidatePath('/transactions');

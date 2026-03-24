@@ -170,6 +170,11 @@ export default function TransactionsClient() {
                     >
                       {tx.category?.name || 'Uncategorized'}
                     </span>
+                    {tx.isRetrospective && (
+                      <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-700 rounded-full border border-amber-200">
+                        Retro
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-surface-600 space-y-1">
                     {tx.type === 'EXPENSE' && <div>From: {tx.sourceAccount?.name}</div>}
@@ -292,6 +297,20 @@ export default function TransactionsClient() {
             label="Notes (Optional)" 
             defaultValue={editingTx?.notes || ''} 
           />
+          
+          <div className="flex items-start gap-2 pt-2 p-3 bg-amber-50 rounded-lg border border-amber-100">
+            <input 
+              type="checkbox" 
+              name="isRetrospective" 
+              id="isRetrospective" 
+              defaultChecked={editingTx?.isRetrospective || false}
+              className="mt-1 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+            />
+            <div>
+              <label htmlFor="isRetrospective" className="text-sm font-medium text-amber-900 block">Retrospective Entry</label>
+              <p className="text-xs text-amber-700">Does not affect account balances. Use this for past records where the account balance was already manually adjusted.</p>
+            </div>
+          </div>
 
           {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>}
 

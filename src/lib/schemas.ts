@@ -30,6 +30,7 @@ export const TransactionSchema = z.object({
   sourceAccountId: z.string().uuid().optional().nullable(),
   destinationAccountId: z.string().uuid().optional().nullable(),
   notes: z.string().optional().nullable(),
+  isRetrospective: z.boolean().default(false),
 }).refine(data => {
   if (data.type === 'INCOME' && !data.destinationAccountId) {
     return false;

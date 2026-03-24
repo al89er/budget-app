@@ -71,7 +71,7 @@ export default function DashboardClient() {
       </div>
 
       {/* Top Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <Card className="bg-gradient-to-br from-brand-600 to-brand-800 text-white border-transparent">
           <CardContent className="p-6">
             <p className="text-brand-100 text-sm font-medium mb-1">Total Net Worth</p>
@@ -92,6 +92,14 @@ export default function DashboardClient() {
               <ArrowDownRight size={16} className="text-red-500" /> Expenses
             </p>
             <p className="text-2xl font-bold text-red-600">{formatCurrency(summary.totalExpense)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-surface-500 text-sm font-medium mb-1 flex items-center gap-2 text-orange-600">
+              <Wallet size={16} /> CC Debt
+            </p>
+            <p className="text-2xl font-bold text-orange-600">{formatCurrency(summary.totalCreditCardDebt)}</p>
           </CardContent>
         </Card>
         <Card>

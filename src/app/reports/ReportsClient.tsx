@@ -170,6 +170,32 @@ export default function ReportsClient() {
           )}
         </CardContent>
       </Card>
+      {/* Grid 3: CC Analytics */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Credit Card: Spending vs. Repayment Trend</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={trends} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis tickFormatter={(v) => `$${v}`} width={80} tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(value: any) => formatCurrency(Number(value) || 0)} />
+                <Legend />
+                <Bar dataKey="ccSpending" name="CC Spending" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="ccRepayment" name="CC Repayment" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-4 p-4 bg-surface-50 rounded-lg border border-surface-200">
+            <p className="text-sm text-surface-600 italic">
+              Tip: Ensure your <strong>CC Repayment</strong> is consistently higher than or equal to <strong>CC Spending</strong> to reduce your debt and avoid interest charges.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
     </div>
   );

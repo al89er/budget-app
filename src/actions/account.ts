@@ -14,12 +14,18 @@ export async function getAccounts() {
     prisma.transaction.groupBy({
       by: ['destinationAccountId'],
       _sum: { amount: true },
-      where: { destinationAccountId: { not: null } },
+      where: { 
+        destinationAccountId: { not: null },
+        isRetrospective: false 
+      },
     }),
     prisma.transaction.groupBy({
       by: ['sourceAccountId'],
       _sum: { amount: true },
-      where: { sourceAccountId: { not: null } },
+      where: { 
+        sourceAccountId: { not: null },
+        isRetrospective: false 
+      },
     })
   ]);
 
