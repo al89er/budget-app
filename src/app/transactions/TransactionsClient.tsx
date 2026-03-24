@@ -2,12 +2,15 @@
 
 import { useState, useTransition } from 'react';
 import { Card, CardContent, Button, Modal, Input, Select } from '@/components/ui';
-import { createTransaction, updateTransaction, deleteTransaction } from '@/actions/transaction';
+import { createTransaction, updateTransaction, deleteTransaction, getTransactions } from '@/actions/transaction';
+import { getAccounts } from '@/actions/account';
+import { getCategories } from '@/actions/category';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Plus, Edit2, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw } from 'lucide-react';
 import { Account, Category, Transaction } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import useSWR from 'swr';
 
 type PopulatedTransaction = Transaction & { 
   category: Category | null;
@@ -24,14 +27,16 @@ type TxData = {
 
 export default function TransactionsClient({ 
   initialData, 
-  accounts, 
-  categories 
+  accounts: initialAccounts, 
+  categories: initialCategories 
 }: { 
   initialData: TxData;
-  accounts: Account[];
-  categories: Category[];
+  accounts: any[];
+  categories: any[];
 }) {
-  const data = initialData;
+  const { data } = useSWR(['transactions-list'], () => getTransactions(initialData.page || 1, 50), { fallbackData: initialData });
+  const { data: accounts } = useSWR('accounts', () => getAccounts(), { fallbackData: initialAccounts });
+  const { data: categories } = useSWR('categories', () => getCategories(), { fallbackData: initialCategories });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);

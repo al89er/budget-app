@@ -7,14 +7,18 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line 
 } from 'recharts';
 import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
+import { getMonthlySummary, getRecentTrends, getBudgetVsActual } from '@/actions/summary';
+import { getAccounts } from '@/actions/account';
+import { getCategories } from '@/actions/category';
 
 export default function ReportsClient({ 
   currentMonth,
-  summary, 
-  trends,
-  budgetVsActual,
-  accounts,
-  categories
+  summary: initialSummary, 
+  trends: initialTrends,
+  budgetVsActual: initialBudgetVsActual,
+  accounts: initialAccounts,
+  categories: initialCategories
 }: { 
   currentMonth: string,
   summary: any, 
@@ -24,6 +28,13 @@ export default function ReportsClient({
   categories: any[]
 }) {
   const router = useRouter();
+
+  const { data: summary } = useSWR(['monthly-summary', currentMonth], () => getMonthlySummary(currentMonth), { fallbackData: initialSummary });
+  const { data: trends } = useSWR('recent-trends', () => getRecentTrends(6), { fallbackData: initialTrends });
+  const { data: budgetVsActual } = useSWR(['budgetVsActual', currentMonth], () => getBudgetVsActual(currentMonth), { fallbackData: initialBudgetVsActual });
+  const { data: accounts } = useSWR('accounts', () => getAccounts(), { fallbackData: initialAccounts });
+  const { data: categories } = useSWR('categories', () => getCategories(), { fallbackData: initialCategories });
+
   const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e'];
 
   return (

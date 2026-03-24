@@ -5,13 +5,17 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { ArrowUpRight, ArrowDownRight, RefreshCw, Wallet, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
+import { getSummaryData, getBudgetVsActual } from '@/actions/summary';
+import { getAccounts } from '@/actions/account';
+import { getTransactions } from '@/actions/transaction';
 
 export default function DashboardClient({ 
   timeframe,
-  summary, 
-  accounts, 
-  recentTransactions, 
-  budgetVsActual 
+  summary: initialSummary, 
+  accounts: initialAccounts, 
+  recentTransactions: initialRecentTransactions, 
+  budgetVsActual: initialBudgetVsActual 
 }: { 
   timeframe: string,
   summary: any, 
@@ -20,6 +24,14 @@ export default function DashboardClient({
   budgetVsActual: any[] 
 }) {
   const router = useRouter();
+  
+  const { data: summary } = useSWR(['summary', timeframe], () => getSummaryData(timeframe), { fallbackData: initialSummary });
+  const { data: accounts } = useSWR('accounts', () => getAccounts(), { fallbackData: initialAccounts });
+  const { data: recentTransactions } = useSWR('recentTx', () => getTransactions(1, 10).then(res => res.transactions), { fallbackData: initialRecentTransactions });
+  const { data: budgetVsActual } = useSWR(['budgetVsActual', timeframe], () => {
+    const d = new Date();
+    return getBudgetVsActual(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }, { fallbackData: initialBudgetVsActual });
   
   const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e'];
 
