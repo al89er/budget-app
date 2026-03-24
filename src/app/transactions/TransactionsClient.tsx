@@ -19,6 +19,7 @@ type PopulatedTransaction = Transaction & {
   category: Category | null;
   sourceAccount: Account | null;
   destinationAccount: Account | null;
+  isRetrospective?: boolean;
 };
 
 export default function TransactionsClient() {
@@ -196,10 +197,10 @@ export default function TransactionsClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="w-full sm:w-auto">
           <h2 className="text-xl font-bold text-surface-900">
-            {accountId ? `${accounts.find(a => a.id === accountId)?.name} Transactions` : 'Recent Transactions'}
+            {accountId ? `${accounts.find(a => a.id === accountId)?.name}` : 'Transactions'}
           </h2>
           {(accountId || categoryId || type || startDate || endDate) && (
             <div className="flex flex-wrap gap-2 mt-2">
@@ -242,8 +243,8 @@ export default function TransactionsClient() {
             </div>
           )}
         </div>
-        <div className="flex gap-2 items-center">
-          <div className="flex items-center gap-2 bg-surface-50 p-1.5 rounded-lg border border-surface-200">
+        <div className="flex flex-col xs:flex-row gap-2 items-center w-full sm:w-auto">
+          <div className="flex flex-1 items-center gap-2 bg-surface-50 p-1.5 rounded-lg border border-surface-200 w-full sm:w-auto overflow-x-auto">
             <input 
               type="date" 
               className="bg-transparent border-none text-xs focus:ring-0 p-0 w-24"
@@ -302,9 +303,9 @@ export default function TransactionsClient() {
               { value: 'custom', label: 'Custom Range' },
             ]}
           />
-          <Button onClick={openCreateModal}>
+          <Button onClick={openCreateModal} className="w-full xs:w-auto">
             <Plus className="h-4 w-4 mr-2" />
-            Add Transaction
+            Add
           </Button>
         </div>
       </div>
@@ -346,10 +347,10 @@ export default function TransactionsClient() {
                      onChange={toggleSelectAll}
                    />
                 </th>
-                <th className="px-6 py-3">Date</th>
+                <th className="px-6 py-3 hidden sm:table-cell">Date</th>
                 <th className="px-6 py-3">Description</th>
-                <th className="px-6 py-3">Category</th>
-                <th className="px-6 py-3">Account(s)</th>
+                <th className="px-6 py-3 hidden md:table-cell">Category</th>
+                <th className="px-6 py-3 hidden lg:table-cell">Account(s)</th>
                 <th className="px-6 py-3 text-right">Amount</th>
                 <th className="px-6 py-3 text-right">Actions</th>
               </tr>
@@ -368,16 +369,19 @@ export default function TransactionsClient() {
                       onChange={() => toggleSelect(tx.id)}
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-surface-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-surface-500 hidden sm:table-cell">
                     {formatDate(tx.date)}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       {renderTxIcon(tx.type)}
-                      <span className="font-medium text-surface-900">{tx.description}</span>
+                      <div>
+                        <span className="font-medium text-surface-900 block">{tx.description}</span>
+                        <span className="text-[10px] text-surface-400 sm:hidden">{formatDate(tx.date)}</span>
+                      </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 hidden md:table-cell">
                     <div className="flex items-center gap-2">
                       <span 
                          className="px-2 py-1 text-xs rounded-md"
@@ -388,14 +392,9 @@ export default function TransactionsClient() {
                       >
                         {tx.category?.name || 'Uncategorized'}
                       </span>
-                      {tx.isRetrospective && (
-                        <span className="px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-700 rounded-full border border-amber-200 font-medium">
-                          Retro
-                        </span>
-                      )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-surface-600 space-y-1">
+                  <td className="px-6 py-4 text-surface-600 space-y-1 hidden lg:table-cell">
                     {tx.type === 'EXPENSE' && <div>From: {tx.sourceAccount?.name}</div>}
                     {tx.type === 'INCOME' && <div>To: {tx.destinationAccount?.name}</div>}
                     {tx.type === 'TRANSFER' && (

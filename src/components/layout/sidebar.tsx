@@ -31,8 +31,8 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile menu button */}
-      <div className="md:hidden fixed top-4 right-4 z-50">
+      {/* Mobile menu button - Hidden as we use Bottom Nav now */}
+      <div className="hidden md:hidden fixed top-4 right-4 z-50">
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
           className="p-2 rounded-md bg-white text-surface-900 shadow-sm border border-surface-200"
@@ -41,17 +41,9 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* Sidebar background overlay for mobile */}
-      {mobileOpen && (
-        <div 
-          className="fixed inset-0 bg-black/20 z-40 md:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-
       {/* Sidebar Content */}
       <div className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-surface-200 shadow-sm transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0
+        fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-surface-200 shadow-sm transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 hidden md:flex
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex flex-col h-full">

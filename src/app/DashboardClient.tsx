@@ -71,9 +71,9 @@ export default function DashboardClient() {
       </div>
 
       {/* Top Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        <Card className="bg-gradient-to-br from-brand-600 to-brand-800 text-white border-transparent overflow-hidden">
-          <CardContent className="p-6 h-full flex flex-col justify-between">
+      <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 md:gap-4">
+        <Card className="col-span-2 xl:col-span-1 bg-gradient-to-br from-brand-600 to-brand-800 text-white border-transparent overflow-hidden">
+          <CardContent className="p-4 md:p-6 h-full flex flex-col justify-between">
             <div>
               <p className="text-brand-100 text-sm font-medium mb-1">Total Net Worth</p>
               <p className="text-xl lg:text-2xl font-bold break-words leading-tight" title={formatCurrency(netWorth)}>
@@ -87,7 +87,7 @@ export default function DashboardClient() {
             <p className="text-surface-500 text-sm font-medium mb-1 flex items-center gap-2">
               <ArrowUpRight size={16} className="text-green-500" /> Income
             </p>
-            <p className="text-2xl font-bold text-green-600">{formatCurrency(summary.totalIncome)}</p>
+            <p className="text-xl md:text-2xl font-bold text-green-600">{formatCurrency(summary.totalIncome)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -95,7 +95,7 @@ export default function DashboardClient() {
             <p className="text-surface-500 text-sm font-medium mb-1 flex items-center gap-2">
               <ArrowDownRight size={16} className="text-red-500" /> Expenses
             </p>
-            <p className="text-2xl font-bold text-red-600">{formatCurrency(summary.totalExpense)}</p>
+            <p className="text-xl md:text-2xl font-bold text-red-600">{formatCurrency(summary.totalExpense)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -103,13 +103,13 @@ export default function DashboardClient() {
             <p className="text-surface-500 text-sm font-medium mb-1 flex items-center gap-2 text-orange-600">
               <Wallet size={16} /> CC Debt
             </p>
-            <p className="text-2xl font-bold text-orange-600">{formatCurrency(summary.totalCreditCardDebt)}</p>
+            <p className="text-xl md:text-2xl font-bold text-orange-600">{formatCurrency(summary.totalCreditCardDebt)}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <p className="text-surface-500 text-sm font-medium mb-1">Net Cashflow</p>
-            <p className={`text-2xl font-bold ${summary.netCashflow >= 0 ? 'text-brand-600' : 'text-red-600'}`}>
+            <p className={`text-xl md:text-2xl font-bold ${summary.netCashflow >= 0 ? 'text-brand-600' : 'text-red-600'}`}>
               {summary.netCashflow > 0 ? '+' : ''}{formatCurrency(summary.netCashflow)}
             </p>
           </CardContent>

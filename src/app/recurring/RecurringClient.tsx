@@ -144,11 +144,11 @@ export default function RecurringClient() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-lg font-medium text-surface-700">Manage Automations</h2>
-        <Button onClick={openCreateModal}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <h2 className="text-lg font-medium text-surface-700">Automations</h2>
+        <Button onClick={openCreateModal} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
-          Add Recurring
+          Add
         </Button>
       </div>
 
@@ -158,9 +158,9 @@ export default function RecurringClient() {
             <thead className="text-xs text-surface-500 uppercase bg-surface-50 border-b border-surface-200">
               <tr>
                 <th className="px-6 py-3">Details</th>
-                <th className="px-6 py-3">Frequency</th>
-                <th className="px-6 py-3">Status</th>
-                <th className="px-6 py-3">Account(s)</th>
+                <th className="px-6 py-3 hidden md:table-cell">Frequency</th>
+                <th className="px-6 py-3 hidden sm:table-cell">Status</th>
+                <th className="px-6 py-3 hidden lg:table-cell">Account(s)</th>
                 <th className="px-6 py-3 text-right">Amount</th>
                 <th className="px-6 py-3 text-right">Actions</th>
               </tr>
@@ -172,12 +172,15 @@ export default function RecurringClient() {
                     <div className="flex items-center gap-3">
                       {renderTxIcon(tx.type)}
                       <div>
-                        <span className="font-medium text-surface-900 block">{tx.description}</span>
-                        <span className="text-xs text-surface-400">{tx.category?.name || 'Uncategorized'}</span>
+                        <span className="font-medium text-surface-900 block line-clamp-1">{tx.description}</span>
+                        <div className="flex flex-wrap items-center gap-x-2 text-[10px] text-surface-400">
+                          <span>{tx.category?.name || 'Uncategorized'}</span>
+                          <span className="md:hidden">&bull; {tx.frequency.toLowerCase()}</span>
+                        </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-surface-600">
+                  <td className="px-6 py-4 whitespace-nowrap text-surface-600 hidden md:table-cell">
                     <div className="flex items-center gap-2">
                        <Repeat size={14} className="text-brand-500" />
                        {tx.frequency}
@@ -196,14 +199,14 @@ export default function RecurringClient() {
                       </div>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap hidden sm:table-cell">
                     {tx.isActive ? (
                       <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">Active</span>
                     ) : (
                       <span className="px-2 py-1 bg-surface-200 text-surface-600 rounded text-xs font-medium">Paused</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-surface-600 text-xs space-y-1">
+                  <td className="px-6 py-4 text-surface-600 text-xs space-y-1 hidden lg:table-cell">
                     {tx.type === 'EXPENSE' && <div>From: {tx.sourceAccount?.name}</div>}
                     {tx.type === 'INCOME' && <div>To: {tx.destinationAccount?.name}</div>}
                     {tx.type === 'TRANSFER' && (

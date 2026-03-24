@@ -105,8 +105,9 @@ export default function AccountsClient() {
 
   return (
     <div>
-      <div className="flex justify-end mb-6">
-        <Button onClick={openCreateModal}>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <h2 className="text-xl font-bold text-surface-900">Your Accounts</h2>
+        <Button onClick={openCreateModal} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Add Account
         </Button>
@@ -147,7 +148,7 @@ export default function AccountsClient() {
                   <p className="text-sm text-surface-500 uppercase tracking-widest font-semibold p-0">Current Balance</p>
                   <History size={14} className="text-surface-300 group-hover:text-brand-500 transition-all group-hover:scale-125" />
                 </div>
-                <p className={`text-2xl font-bold transition-all ${account.currentBalance < 0 ? 'text-red-500' : 'text-surface-900'} group-hover:text-brand-600`}>
+                <p className={`text-xl md:text-2xl font-bold transition-all ${account.currentBalance < 0 ? 'text-red-500' : 'text-surface-900'} group-hover:text-brand-600`}>
                   {formatCurrency(account.currentBalance)}
                 </p>
               </div>
