@@ -45,6 +45,7 @@ export default function TransactionsClient() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [txType, setTxType] = useState<string>('EXPENSE');
 
   if (!mounted || !data || !accounts || !categories) {
     return (
@@ -57,7 +58,6 @@ export default function TransactionsClient() {
 
   // Form local state to dynamically adjust fields
   const editingTx = editingId ? data.transactions.find(t => t.id === editingId) : null;
-  const [txType, setTxType] = useState<string>('EXPENSE');
 
   function openCreateModal() {
     setEditingId(null);
