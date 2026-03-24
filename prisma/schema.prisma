@@ -1,0 +1,102 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Account {
+  id              String   @id @default(uuid())
+  name            String
+  type            String   @default("BANK") // BANK, CASH, EWALLET, SAVINGS, CREDIT_CARD, OTHER
+  openingBalance  Float    @default(0)
+  isActive        Boolean  @default(true)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  sourceTransactions      Transaction[] @relation("SourceAccount")
+  destinationTransactions Transaction[] @relation("DestinationAccount")
+  recurringSourceTx       RecurringTransaction[] @relation("RecurringSourceAccount")
+  recurringDestinationTx  RecurringTransaction[] @relation("RecurringDestinationAccount")
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String
+  type        String   // INCOME, EXPENSE, TRANSFER
+  parentId    String?
+  parent      Category?  @relation("SubCategories", fields: [parentId], references: [id])
+  children    Category[] @relation("SubCategories")
+  color       String?
+  icon        String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  transactions Transaction[]
+  budgets      Budget[]
+  recurringTxs RecurringTransaction[] @relation("RecurringCategory")
+}
+
+model Transaction {
+  id                   String   @id @default(uuid())
+  date                 DateTime
+  description          String
+  amount               Float    // Always stored as positive
+  type                 String   // INCOME, EXPENSE, TRANSFER
+  categoryId           String?
+  category             Category? @relation(fields: [categoryId], references: [id])
+  sourceAccountId      String?
+  sourceAccount        Account?  @relation("SourceAccount", fields: [sourceAccountId], references: [id])
+  destinationAccountId String?
+  destinationAccount   Account?  @relation("DestinationAccount", fields: [destinationAccountId], references: [id])
+  notes                String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Budget {
+  id          String   @id @default(uuid())
+  month       String   // Format: YYYY-MM
+  amount      Float
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([month, categoryId]) 
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model RecurringTransaction {
+  id                   String   @id @default(uuid())
+  description          String
+  amount               Float
+  type                 String   // INCOME, EXPENSE, TRANSFER
+  categoryId           String?
+  category             Category? @relation("RecurringCategory", fields: [categoryId], references: [id])
+  sourceAccountId      String?
+  sourceAccount        Account?  @relation("RecurringSourceAccount", fields: [sourceAccountId], references: [id])
+  destinationAccountId String?
+  destinationAccount   Account?  @relation("RecurringDestinationAccount", fields: [destinationAccountId], references: [id])
+  frequency            String   // DAILY, WEEKLY, MONTHLY, YEARLY
+  startDate            DateTime
+  endDate              DateTime?
+  maxOccurrences       Int?
+  currentOccurrences   Int      @default(0)
+  lastProcessed        DateTime?
+  isActive             Boolean  @default(true)
+  notes                String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+

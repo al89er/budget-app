@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Personal Budget Tracker
 
-## Getting Started
+A clean, modern, responsive personal budget and cashflow tracking web app designed to replace complex Excel workbooks with a simple, normalized data structure.
 
-First, run the development server:
+## Tech Stack
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **Database**: SQLite (local) via **Prisma ORM**
+- **Charts**: Recharts
+- **Validation**: Zod
+- **Icons**: Lucide React
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Project Philosophy
+This application treats finance predictably:
+- **Accounts**: Where money sits.
+- **Transactions**: The raw events. Categorized strictly into `INCOME`, `EXPENSE`, or `TRANSFER`.
+- **Transfers**: Internal movement. Do not pollute expense or income tracking.
+- **Budgets**: Planned spending targets assigned to `EXPENSE` categories per month.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Features
+- **Dashboard & Date Filters**: View net worth, income, expenses, and charts filtered by This Month, Last Month, YTD, or All Time.
+- **Recurring Transactions**: Set up automations to generate bills, subscriptions, or paychecks on a schedule.
+- **Settings & Export**: Change global currency (e.g. `RM`, `USD`) and download all transactions as a CSV.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Setup Instructions
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Install Dependencies**
+   ```bash
+   npm install
+   ```
 
-## Learn More
+2. **Database Setup**
+   Ensure your `.env` has the correct SQLite URL:
+   ```env
+   DATABASE_URL="file:./dev.db"
+   ```
+   
+   Run the Prisma migrations:
+   ```bash
+   npx prisma db push
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+3. **Seeding Sample Data**
+   Populate the database with sample categories, accounts, and transactions:
+   ```bash
+   npm run prisma seed
+   ```
+   *Note: This runs `tsx prisma/seed.ts` to initialize defaults based on a realistic monthly budget scenario.*
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. **Run the Development Server**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Architecture Overview
+- `src/components/ui/`: Contains custom reusable Tailwind components (Buttons, Cards, Modals, Inputs) to maintain consistent design without external UI libraries.
+- `src/components/layout/`: Holds the responsive App Shell sidebar.
+- `src/actions/`: Next.js Server Actions handling business logic and Prisma database access securely on the server.
+- `src/app/`: The Next.js App Router structure. Data is fetched securely in server components (e.g., `page.tsx`) and passed into interactive Client components (e.g., `*Client.tsx`).
+- `src/lib/`: Core utilities, Zod schemas for strict form validation, and Prisma client instantiation.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Known Limitations & Future Enhancements
+- **Authentication**: Currently built as a single-user local application. The architecture is ready to integrate NextAuth/Auth.js.
+- **Bank Imports**: Transactions are currently entered manually or via Recurring automations. A future CSV upload mapping feature will be needed to import bank statements.
