@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { Card, CardContent, Button, Modal, Input, Select } from '@/components/ui';
 import { createCategory, updateCategory, deleteCategory } from '@/actions/category';
-import { PieChart, Plus, Edit2, Trash2, RefreshCw } from 'lucide-react';
+import { PieChart, Plus, Edit2, Trash2, RefreshCw, Palette } from 'lucide-react';
 import { Category } from '@prisma/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -20,9 +20,12 @@ export default function CategoriesClient() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [randomDefaultColor, setRandomDefaultColor] = useState('#3b82f6');
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  const DEFAULT_COLORS = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e'];
 
   if (!mounted || !categories) {
     return (
@@ -41,6 +44,7 @@ export default function CategoriesClient() {
   async function openCreateModal() {
     setEditingId(null);
     setError(null);
+    setRandomDefaultColor(DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)]);
     setIsModalOpen(true);
   }
 
@@ -169,7 +173,7 @@ export default function CategoriesClient() {
             name="color" 
             type="color" 
             label="Color" 
-            defaultValue={editingCategory?.color || '#3b82f6'} 
+            defaultValue={editingCategory?.color || randomDefaultColor} 
             className="h-10 w-full cursor-pointer p-1"
           />
           

@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma';
 import { TransactionSchema } from '@/lib/schemas';
 import { revalidatePath } from 'next/cache';
 
-export async function getTransactions(page = 1, limit = 50, filters?: { type?: string; categoryId?: string; accountId?: string }) {
+export async function getTransactions(page = 1, limit = 50, filters?: { type?: string; categoryId?: string; accountId?: string; startDate?: Date; endDate?: Date }) {
   const skip = (page - 1) * limit;
 
   const where: any = {};
@@ -15,6 +15,12 @@ export async function getTransactions(page = 1, limit = 50, filters?: { type?: s
       { sourceAccountId: filters.accountId },
       { destinationAccountId: filters.accountId },
     ];
+  }
+
+  if (filters?.startDate || filters?.endDate) {
+    where.date = {};
+    if (filters.startDate) where.date.gte = filters.startDate;
+    if (filters.endDate) where.date.lte = filters.endDate;
   }
 
   const [transactions, total] = await Promise.all([
@@ -136,3 +142,19 @@ export async function deleteTransaction(id: string) {
     return { error: 'Failed to delete transaction' };
   }
 }
+
+export async function deleteTransactions(ids: string[]) {
+  try {
+    await prisma.transaction.deleteMany({
+      where: { id: { in: ids } },
+    });
+    revalidatePath('/transactions');
+    revalidatePath('/accounts');
+    revalidatePath('/reports');
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    return { error: 'Failed to delete transactions' };
+  }
+}
+

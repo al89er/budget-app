@@ -2,6 +2,7 @@
 
 import prisma from '@/lib/prisma';
 import { startOfMonth, endOfMonth, parse, subMonths, startOfYear } from 'date-fns';
+import { getAccounts } from '@/actions/account';
 
 export async function getSummaryData(timeframe: string = 'this_month') {
   const now = new Date();
@@ -60,36 +61,19 @@ export async function getSummaryData(timeframe: string = 'this_month') {
         expensesByCategory[tx.category.id].amount += tx.amount;
       }
     }
-    // TRANSFERS DO NOT COUNT TOWARDS INCOME OR EXPENSE
   });
 
   const netCashflow = totalIncome - totalExpense;
 
   // Calculate Total Credit Card Debt (Global, not timeframe bound)
-  const ccAccounts = await prisma.account.findMany({ where: { type: 'CREDIT_CARD', isActive: true } });
-  const ccAccountIds = ccAccounts.map(a => a.id);
-  
-  const [ccIncomes, ccExpenses] = await Promise.all([
-    prisma.transaction.groupBy({
-      by: ['destinationAccountId'],
-      _sum: { amount: true },
-      where: { destinationAccountId: { in: ccAccountIds } }
-    }),
-    prisma.transaction.groupBy({
-      by: ['sourceAccountId'],
-      _sum: { amount: true },
-      where: { sourceAccountId: { in: ccAccountIds } }
-    })
-  ]);
-
-  const ccIncomeMap = new Map(ccIncomes.map(i => [i.destinationAccountId as string, i._sum.amount || 0]));
-  const ccExpenseMap = new Map(ccExpenses.map(e => [e.sourceAccountId as string, e._sum.amount || 0]));
-
-  const totalCreditCardDebt = ccAccounts.reduce((acc, account) => {
-    const balance = account.openingBalance + (ccIncomeMap.get(account.id) || 0) - (ccExpenseMap.get(account.id) || 0);
-    // Debt is positive value of negative balance
-    return acc + (balance < 0 ? Math.abs(balance) : 0);
-  }, 0);
+  // Reusing getAccounts() which already has the date filter (date <= now)
+  const accounts = await getAccounts();
+  const totalCreditCardDebt = accounts
+    .filter(a => a.type === 'CREDIT_CARD' && a.isActive)
+    .reduce((acc, a) => {
+      // Balance < 0 means money is owed (debt)
+      return acc + (a.currentBalance < 0 ? Math.abs(a.currentBalance) : 0);
+    }, 0);
 
   // Formatting for Recharts
   const spendingByCategoryData = Object.values(expensesByCategory).sort((a, b) => b.amount - a.amount);
@@ -142,7 +126,6 @@ export async function getMonthlySummary(monthString: string) {
         expensesByCategory[tx.category.id].amount += tx.amount;
       }
     }
-    // TRANSFERS DO NOT COUNT TOWARDS INCOME OR EXPENSE
   });
 
   const netCashflow = totalIncome - totalExpense;
@@ -162,17 +145,14 @@ export async function getMonthlySummary(monthString: string) {
   let ccRepayment = 0;
 
   ccTransactions.forEach(tx => {
-    // Spending: Expenses from CC
     if (tx.type === 'EXPENSE' && tx.sourceAccountId) {
        ccSpending += tx.amount;
     }
-    // Repayment: Transfers INTO CC
     if (tx.type === 'TRANSFER' && tx.destinationAccountId) {
        ccRepayment += tx.amount;
     }
   });
 
-  // Formatting for Recharts
   const spendingByCategoryData = Object.values(expensesByCategory).sort((a, b) => b.amount - a.amount);
 
   return {

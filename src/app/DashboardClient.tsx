@@ -72,10 +72,14 @@ export default function DashboardClient() {
 
       {/* Top Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-        <Card className="bg-gradient-to-br from-brand-600 to-brand-800 text-white border-transparent">
-          <CardContent className="p-6">
-            <p className="text-brand-100 text-sm font-medium mb-1">Total Net Worth</p>
-            <p className="text-3xl font-bold">{formatCurrency(netWorth)}</p>
+        <Card className="bg-gradient-to-br from-brand-600 to-brand-800 text-white border-transparent overflow-hidden">
+          <CardContent className="p-6 h-full flex flex-col justify-between">
+            <div>
+              <p className="text-brand-100 text-sm font-medium mb-1">Total Net Worth</p>
+              <p className="text-xl lg:text-2xl font-bold break-words leading-tight" title={formatCurrency(netWorth)}>
+                {formatCurrency(netWorth)}
+              </p>
+            </div>
           </CardContent>
         </Card>
         <Card>

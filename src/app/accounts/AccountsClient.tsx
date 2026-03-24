@@ -4,12 +4,13 @@ import { useState, useTransition } from 'react';
 import { Card, CardContent, Button, Modal, Input, Select } from '@/components/ui';
 import { createAccount, updateAccount, setAccountActive } from '@/actions/account';
 import { formatCurrency } from '@/lib/utils';
-import { Wallet, Plus, Edit2, Archive, ArchiveRestore, RefreshCw } from 'lucide-react';
+import { Wallet, Plus, Edit2, Archive, ArchiveRestore, RefreshCw, History, ArrowUpRight, ArrowDownRight, ExternalLink } from 'lucide-react';
 import { Account } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import useSWR, { mutate } from 'swr';
 import { getAccounts } from '@/actions/account';
+import { getTransactions } from '@/actions/transaction';
 import { useEffect } from 'react';
 
 type AccountWithBalance = Account & { currentBalance: number };
@@ -23,6 +24,13 @@ export default function AccountsClient() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [confirmToggleId, setConfirmToggleId] = useState<{ id: string, currentStatus: boolean } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedHistoryAccountId, setSelectedHistoryAccountId] = useState<string | null>(null);
+  
+  const { data: historyData, isLoading: historyLoading } = useSWR(
+    selectedHistoryAccountId ? ['account-history', selectedHistoryAccountId] : null,
+    ([, id]) => getTransactions(1, 10, { accountId: id })
+  );
+
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -87,6 +95,13 @@ export default function AccountsClient() {
   }
 
   const editingAccount = editingId ? accounts.find(a => a.id === editingId) : null;
+  const historyAccount = selectedHistoryAccountId ? accounts.find(a => a.id === selectedHistoryAccountId) : null;
+
+  function renderTxIcon(type: string) {
+    if (type === 'INCOME') return <div className="p-2 bg-green-100 text-green-600 rounded-lg"><ArrowUpRight size={18} /></div>;
+    if (type === 'EXPENSE') return <div className="p-2 bg-red-100 text-red-600 rounded-lg"><ArrowDownRight size={18} /></div>;
+    return <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><RefreshCw size={18} /></div>;
+  }
 
   return (
     <div>
@@ -106,8 +121,11 @@ export default function AccountsClient() {
                   <div className={`p-2 rounded-lg ${account.isActive ? 'bg-brand-50 text-brand-600' : 'bg-surface-200 text-surface-500'}`}>
                     <Wallet size={24} />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-surface-900">{account.name}</h3>
+                  <div 
+                    className="cursor-pointer group flex-1"
+                    onClick={() => setSelectedHistoryAccountId(account.id)}
+                  >
+                    <h3 className="font-semibold text-surface-900 group-hover:text-brand-600 transition-colors uppercase tracking-wider">{account.name}</h3>
                     <p className="text-sm text-surface-500">{account.type}</p>
                   </div>
                 </div>
@@ -121,9 +139,15 @@ export default function AccountsClient() {
                 </div>
               </div>
 
-              <div className="mt-6">
-                <p className="text-sm text-surface-500 mb-1">Current Balance</p>
-                <p className={`text-2xl font-bold ${account.currentBalance < 0 ? 'text-red-600' : 'text-surface-900'}`}>
+              <div 
+                className="mt-6 cursor-pointer group"
+                onClick={() => setSelectedHistoryAccountId(account.id)}
+              >
+                <div className="flex justify-between items-end mb-1">
+                  <p className="text-sm text-surface-500 uppercase tracking-widest font-semibold p-0">Current Balance</p>
+                  <History size={14} className="text-surface-300 group-hover:text-brand-500 transition-all group-hover:scale-125" />
+                </div>
+                <p className={`text-2xl font-bold transition-all ${account.currentBalance < 0 ? 'text-red-500' : 'text-surface-900'} group-hover:text-brand-600`}>
                   {formatCurrency(account.currentBalance)}
                 </p>
               </div>
@@ -211,6 +235,60 @@ export default function AccountsClient() {
             <Button variant="ghost" onClick={() => setConfirmToggleId(null)} disabled={isPending}>Cancel</Button>
             <Button onClick={handleToggleStatus} disabled={isPending} className="bg-orange-600 hover:bg-orange-700 text-white">
               {isPending ? 'Saving...' : (confirmToggleId?.currentStatus ? 'Deactivate' : 'Activate')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Account History Modal */}
+      <Modal
+        isOpen={!!selectedHistoryAccountId}
+        onClose={() => setSelectedHistoryAccountId(null)}
+        title={historyAccount ? `${historyAccount.name} History` : 'Account History'}
+      >
+        <div className="space-y-4">
+          {historyLoading ? (
+            <div className="py-12 flex flex-col items-center justify-center text-surface-400">
+              <RefreshCw className="h-8 w-8 animate-spin mb-2 text-brand-500" />
+              <p className="text-sm">Loading transactions...</p>
+            </div>
+          ) : historyData?.transactions.length === 0 ? (
+            <div className="py-12 text-center text-surface-500">
+              No transactions found for this account.
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+              {historyData?.transactions.map((tx: any) => (
+                <div key={tx.id} className="flex items-center justify-between p-3 bg-surface-50 rounded-xl border border-surface-100 group hover:border-brand-200 transition-all">
+                  <div className="flex items-center gap-3">
+                    {renderTxIcon(tx.type)}
+                    <div>
+                      <p className="font-semibold text-surface-900 group-hover:text-brand-600 transition-colors">{tx.description}</p>
+                      <p className="text-[10px] text-surface-400 uppercase tracking-widest font-bold">
+                        {new Date(tx.date).toLocaleDateString()} • {tx.category?.name || 'Uncategorized'}
+                      </p>
+                    </div>
+                  </div>
+                  <p className={`font-bold ${tx.type === 'INCOME' ? 'text-green-600' : tx.type === 'EXPENSE' ? 'text-red-500' : 'text-blue-600'}`}>
+                    {tx.type === 'INCOME' ? '+' : tx.type === 'EXPENSE' ? '-' : ''}
+                    {formatCurrency(tx.amount)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="pt-4 border-t border-surface-100 flex justify-between items-center">
+            <Button variant="ghost" onClick={() => setSelectedHistoryAccountId(null)}>Close</Button>
+            <Button 
+              variant="outline" 
+              className="group"
+              onClick={() => {
+                router.push(`/transactions?accountId=${selectedHistoryAccountId}`);
+              }}
+            >
+              Full Transactions
+              <ExternalLink size={14} className="ml-2 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </Button>
           </div>
         </div>

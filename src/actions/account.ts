@@ -10,13 +10,15 @@ export async function getAccounts() {
   });
 
   // Combine aggregations into two massive queries for performance
+  const now = new Date();
   const [incomes, expenses] = await Promise.all([
     prisma.transaction.groupBy({
       by: ['destinationAccountId'],
       _sum: { amount: true },
       where: { 
         destinationAccountId: { not: null },
-        isRetrospective: false 
+        isRetrospective: false,
+        date: { lte: now }
       },
     }),
     prisma.transaction.groupBy({
@@ -24,7 +26,8 @@ export async function getAccounts() {
       _sum: { amount: true },
       where: { 
         sourceAccountId: { not: null },
-        isRetrospective: false 
+        isRetrospective: false,
+        date: { lte: now }
       },
     })
   ]);

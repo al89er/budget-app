@@ -1,15 +1,8 @@
-import { getRecurringTransactions } from '@/actions/recurring';
-import { getAccounts } from '@/actions/account';
-import { getCategories } from '@/actions/category';
+import { Suspense } from 'react';
 import RecurringClient from './RecurringClient';
+import { Card } from '@/components/ui';
 
-export default async function RecurringPage() {
-  const [recurringTxs, accounts, categories] = await Promise.all([
-    getRecurringTransactions(),
-    getAccounts(),
-    getCategories(),
-  ]);
-
+export default function RecurringPage() {
   return (
     <div className="space-y-6">
       <div>
@@ -17,11 +10,17 @@ export default async function RecurringPage() {
         <p className="text-surface-500">Automate your regular income, expenses, and transfers.</p>
       </div>
 
-      <RecurringClient 
-        initialRecurring={recurringTxs} 
-        accounts={accounts}
-        categories={categories}
-      />
+      <Suspense fallback={<RecurringSkeleton />}>
+        <RecurringClient />
+      </Suspense>
     </div>
+  );
+}
+
+function RecurringSkeleton() {
+  return (
+    <Card className="animate-pulse">
+      <div className="h-64 bg-surface-100 rounded-lg"></div>
+    </Card>
   );
 }

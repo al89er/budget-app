@@ -39,7 +39,10 @@ export async function createRecurringTransaction(formData: FormData) {
       },
     });
     
+    await processDueRecurringTransactions();
+    
     revalidatePath('/recurring');
+    revalidatePath('/transactions');
     revalidatePath('/');
     return { success: true };
   } catch (error) {
@@ -70,7 +73,11 @@ export async function updateRecurringTransaction(id: string, formData: FormData)
         notes: data.notes as string,
       },
     });
+
+    await processDueRecurringTransactions();
+
     revalidatePath('/recurring');
+    revalidatePath('/transactions');
     revalidatePath('/');
     return { success: true };
   } catch (error) {
@@ -135,6 +142,7 @@ export async function processDueRecurringTransactions() {
             sourceAccountId: r.sourceAccountId,
             destinationAccountId: r.destinationAccountId,
             notes: r.notes,
+            isRetrospective: isBefore(currentDateToProcess, now),
           }
         });
 

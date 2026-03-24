@@ -4,6 +4,12 @@ import prisma from '@/lib/prisma';
 import { CategorySchema } from '@/lib/schemas';
 import { revalidatePath } from 'next/cache';
 
+const DEFAULT_COLORS = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e'];
+
+function getRandomColor() {
+  return DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)];
+}
+
 export async function getCategories() {
   return prisma.category.findMany({
     orderBy: [{ type: 'asc' }, { name: 'asc' }],
@@ -34,7 +40,7 @@ export async function createCategory(formData: FormData) {
       data: {
         name: result.data.name,
         type: result.data.type,
-        color: result.data.color,
+        color: !result.data.color || result.data.color === '#3b82f6' ? getRandomColor() : result.data.color,
         icon: result.data.icon,
         isActive: result.data.isActive,
         parentId: result.data.parentId,

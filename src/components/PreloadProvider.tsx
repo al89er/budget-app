@@ -6,6 +6,7 @@ import { getSummaryData, getBudgetVsActual, getMonthlySummary, getRecentTrends }
 import { getAccounts } from '@/actions/account';
 import { getTransactions } from '@/actions/transaction';
 import { getCategories } from '@/actions/category';
+import { getRecurringTransactions } from '@/actions/recurring';
 import { format } from 'date-fns';
 
 export default function PreloadProvider({ children }: { children: React.ReactNode }) {
@@ -25,6 +26,7 @@ export default function PreloadProvider({ children }: { children: React.ReactNod
   useSWR(mounted ? ['budgetVsActual', currentMonth] : null, () => getBudgetVsActual(currentMonth));
   // Standard transaction list usually starts at page 1
   useSWR(mounted ? ['transactions-list', 1, undefined, undefined, undefined] : null, () => getTransactions(1, 50));
+  useSWR(mounted ? 'recurring' : null, () => getRecurringTransactions());
 
   return <>{children}</>;
 }

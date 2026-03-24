@@ -4,10 +4,15 @@ import { useState, useTransition } from 'react';
 import { Card, CardContent, Button, Modal, Input, Select } from '@/components/ui';
 import { createRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction } from '@/actions/recurring';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Plus, Edit2, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw, Repeat } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw, Repeat, PlusCircle } from 'lucide-react';
 import { Account, Category, RecurringTransaction } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import useSWR, { mutate as globalMutate } from 'swr';
+import { getRecurringTransactions } from '@/actions/recurring';
+import { getAccounts } from '@/actions/account';
+import { getCategories, createCategory } from '@/actions/category';
+import { useEffect } from 'react';
 
 type PopulatedRecurring = RecurringTransaction & { 
   category: Category | null;
@@ -15,24 +20,38 @@ type PopulatedRecurring = RecurringTransaction & {
   destinationAccount: Account | null;
 };
 
-export default function RecurringClient({ 
-  initialRecurring, 
-  accounts, 
-  categories 
-}: { 
-  initialRecurring: PopulatedRecurring[];
-  accounts: Account[];
-  categories: Category[];
-}) {
+export default function RecurringClient() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const { data: recurringTxs, mutate: mutateRecurring } = useSWR(
+    mounted ? 'recurring' : null, 
+    () => getRecurringTransactions().then(res => res as PopulatedRecurring[])
+  );
+  const { data: accounts } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
+  const { data: categories } = useSWR(mounted ? 'categories' : null, () => getCategories());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isQuickCategoryModalOpen, setIsQuickCategoryModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [newCategoryId, setNewCategoryId] = useState<string | null>(null);
+  const [randomCategoryColor, setRandomCategoryColor] = useState('#3b82f6');
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  const editingTx = editingId ? initialRecurring.find(t => t.id === editingId) : null;
+  const DEFAULT_COLORS = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e'];
+
+  const editingTx = editingId ? (recurringTxs?.find(t => t.id === editingId)) : null;
   const [txType, setTxType] = useState<string>('EXPENSE');
+
+  if (!mounted || !recurringTxs || !accounts || !categories) {
+    return (
+      <Card className="animate-pulse">
+        <div className="h-64 bg-surface-100 rounded-lg"></div>
+      </Card>
+    );
+  }
 
   function openCreateModal() {
     setEditingId(null);
@@ -65,7 +84,7 @@ export default function RecurringClient({
       } else {
         setIsModalOpen(false);
         toast.success(editingId ? "Recurring transaction updated successfully" : "Recurring transaction created successfully");
-        router.refresh();
+        mutateRecurring();
       }
     });
   }
@@ -83,7 +102,30 @@ export default function RecurringClient({
       } else {
         toast.success("Recurring transaction deleted successfully");
         setDeleteConfirmId(null);
-        router.refresh();
+        mutateRecurring();
+      }
+    });
+  }
+
+  function handleQuickCategorySubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    formData.set('type', txType);
+    formData.set('isActive', 'true');
+    
+    startTransition(async () => {
+      const res = await createCategory(formData);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success("Category created successfully");
+        const allCategories = await globalMutate('categories');
+        const name = formData.get('name') as string;
+        const created = (allCategories as any[])?.find((c: any) => c.name === name);
+        if (created) {
+          setNewCategoryId(created.id);
+        }
+        setIsQuickCategoryModalOpen(false);
       }
     });
   }
@@ -124,7 +166,7 @@ export default function RecurringClient({
               </tr>
             </thead>
             <tbody>
-              {initialRecurring.map((tx) => (
+              {recurringTxs.map((tx) => (
                 <tr key={tx.id} className="bg-white border-b border-surface-100 hover:bg-surface-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -190,7 +232,7 @@ export default function RecurringClient({
                   </td>
                 </tr>
               ))}
-              {initialRecurring.length === 0 && (
+              {recurringTxs.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-surface-500">
                     No recurring transactions setup yet. Automate your bills here!
@@ -275,13 +317,29 @@ export default function RecurringClient({
             />
           </div>
 
-          <Select 
-            name="categoryId" 
-            label="Category" 
-            defaultValue={editingTx?.categoryId || ''}
-            options={categoryOptions}
-            required={txType !== 'TRANSFER'}
-          />
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <Select 
+                name="categoryId" 
+                label="Category" 
+                defaultValue={newCategoryId || editingTx?.categoryId || ''}
+                key={newCategoryId || 'cat-select'}
+                options={categoryOptions}
+                required={txType !== 'TRANSFER'}
+              />
+            </div>
+            <button 
+              type="button"
+              onClick={() => {
+                setRandomCategoryColor(DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)]);
+                setIsQuickCategoryModalOpen(true);
+              }}
+              className="mb-2 p-2 text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+              title="Quick Add Category"
+            >
+              <PlusCircle size={20} />
+            </button>
+          </div>
 
           {(txType === 'EXPENSE' || txType === 'TRANSFER') && (
             <Select 
@@ -341,6 +399,27 @@ export default function RecurringClient({
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Quick Category Modal */}
+      <Modal
+        isOpen={isQuickCategoryModalOpen}
+        onClose={() => setIsQuickCategoryModalOpen(false)}
+        title={`Quick Add ${txType.toLowerCase()} Category`}
+      >
+        <form onSubmit={handleQuickCategorySubmit} className="space-y-4">
+          <Input name="name" label="Category Name" placeholder="e.g. Subscriptions" required />
+          <div className="grid grid-cols-2 gap-4">
+            <Input name="color" label="Color" type="color" defaultValue={randomCategoryColor} />
+            <Input name="icon" label="Icon (Emoji)" placeholder="🛒" defaultValue="📦" />
+          </div>
+          <div className="pt-4 flex justify-end gap-3">
+            <Button type="button" variant="ghost" onClick={() => setIsQuickCategoryModalOpen(false)} disabled={isPending}>Cancel</Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? 'Creating...' : 'Create Category'}
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );
