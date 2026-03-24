@@ -9,34 +9,31 @@ export async function getAccounts() {
     orderBy: { name: 'asc' },
   });
 
-  // Calculate current balance on the fly for data integrity
-  const accountsWithBalance = await Promise.all(
-    accounts.map(async (account) => {
-      // Income into this account
-      const incomeAndTransfersIn = await prisma.transaction.aggregate({
-        where: { destinationAccountId: account.id },
-        _sum: { amount: true },
-      });
-
-      // Expense from this account
-      const expensesAndTransfersOut = await prisma.transaction.aggregate({
-        where: { sourceAccountId: account.id },
-        _sum: { amount: true },
-      });
-
-      const totalIn = incomeAndTransfersIn._sum.amount || 0;
-      const totalOut = expensesAndTransfersOut._sum.amount || 0;
-      
-      const currentBalance = account.openingBalance + totalIn - totalOut;
-
-      return {
-        ...account,
-        currentBalance,
-      };
+  // Combine aggregations into two massive queries for performance
+  const [incomes, expenses] = await Promise.all([
+    prisma.transaction.groupBy({
+      by: ['destinationAccountId'],
+      _sum: { amount: true },
+      where: { destinationAccountId: { not: null } },
+    }),
+    prisma.transaction.groupBy({
+      by: ['sourceAccountId'],
+      _sum: { amount: true },
+      where: { sourceAccountId: { not: null } },
     })
-  );
+  ]);
 
-  return accountsWithBalance;
+  const incomeMap = new Map(incomes.map(i => [i.destinationAccountId as string, i._sum.amount || 0]));
+  const expenseMap = new Map(expenses.map(e => [e.sourceAccountId as string, e._sum.amount || 0]));
+
+  return accounts.map(account => {
+    const totalIn = incomeMap.get(account.id) || 0;
+    const totalOut = expenseMap.get(account.id) || 0;
+    return {
+      ...account,
+      currentBalance: account.openingBalance + totalIn - totalOut,
+    };
+  });
 }
 
 export async function getAccountById(id: string) {

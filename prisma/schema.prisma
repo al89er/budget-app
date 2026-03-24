@@ -57,6 +57,11 @@ model Transaction {
   notes                String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+
+  @@index([date])
+  @@index([sourceAccountId])
+  @@index([destinationAccountId])
+  @@index([categoryId])
 }
 
 model Budget {
