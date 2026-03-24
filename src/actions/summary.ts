@@ -76,6 +76,61 @@ export async function getSummaryData(timeframe: string = 'this_month') {
   };
 }
 
+export async function getMonthlySummary(monthString: string) {
+  const date = parse(monthString, 'yyyy-MM', new Date());
+  const start = startOfMonth(date);
+  const end = endOfMonth(date);
+
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      date: {
+        gte: start,
+        lte: end,
+      },
+    },
+    include: {
+      category: true,
+    },
+  });
+
+  let totalIncome = 0;
+  let totalExpense = 0;
+  const expensesByCategory: Record<string, { name: string; amount: number; color?: string }> = {};
+
+  transactions.forEach((tx) => {
+    if (tx.type === 'INCOME') {
+      totalIncome += tx.amount;
+    } else if (tx.type === 'EXPENSE') {
+      totalExpense += tx.amount;
+      
+      // Calculate category spending
+      if (tx.category) {
+        if (!expensesByCategory[tx.category.id]) {
+          expensesByCategory[tx.category.id] = {
+            name: tx.category.name,
+            amount: 0,
+            color: tx.category.color || undefined,
+          };
+        }
+        expensesByCategory[tx.category.id].amount += tx.amount;
+      }
+    }
+    // TRANSFERS DO NOT COUNT TOWARDS INCOME OR EXPENSE
+  });
+
+  const netCashflow = totalIncome - totalExpense;
+
+  // Formatting for Recharts
+  const spendingByCategoryData = Object.values(expensesByCategory).sort((a, b) => b.amount - a.amount);
+
+  return {
+    totalIncome,
+    totalExpense,
+    netCashflow,
+    spendingByCategoryData,
+  };
+}
+
 export async function getBudgetVsActual(monthString: string) {
   const date = parse(monthString, 'yyyy-MM', new Date());
   const start = startOfMonth(date);

@@ -53,7 +53,7 @@ export async function createAccount(formData: FormData) {
   });
 
   if (!result.success) {
-    return { error: result.error.errors[0].message };
+    return { error: result.error.issues[0].message };
   }
 
   try {
@@ -82,7 +82,7 @@ export async function updateAccount(id: string, formData: FormData) {
   });
 
   if (!result.success) {
-    return { error: result.error.errors[0].message };
+    return { error: result.error.issues[0].message };
   }
 
   try {

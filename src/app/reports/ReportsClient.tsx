@@ -95,7 +95,7 @@ export default function ReportsClient({
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tickFormatter={(v) => `$${v}`} width={80} tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Tooltip formatter={(value: any) => formatCurrency(Number(value) || 0)} />
                 <Legend />
                 <Line type="monotone" dataKey="income" name="Income" stroke="#22c55e" strokeWidth={3} activeDot={{ r: 8 }} />
                 <Line type="monotone" dataKey="expense" name="Expense" stroke="#ef4444" strokeWidth={3} />
