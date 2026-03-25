@@ -41,7 +41,8 @@ export async function getSummaryData(timeframe: string = 'this_month') {
         }
       },
     },
-  });
+  } as any) as any[];
+
 
   let totalIncome = 0;
   let totalExpense = 0;
@@ -54,7 +55,7 @@ export async function getSummaryData(timeframe: string = 'this_month') {
       totalExpense += tx.amount;
       
       // Calculate category spending
-      tx.categories.forEach((catLink) => {
+      tx.categories.forEach((catLink: any) => {
         const category = catLink.category;
         if (!expensesByCategory[category.id]) {
           expensesByCategory[category.id] = {
@@ -96,7 +97,6 @@ export async function getMonthlySummary(monthString: string) {
   const date = parse(monthString, 'yyyy-MM', new Date());
   const start = startOfMonth(date);
   const end = endOfMonth(date);
-
   const transactions = await prisma.transaction.findMany({
     where: {
       date: {
@@ -111,7 +111,8 @@ export async function getMonthlySummary(monthString: string) {
         }
       },
     },
-  });
+  } as any) as any[];
+
 
   let totalIncome = 0;
   let totalExpense = 0;
@@ -124,7 +125,7 @@ export async function getMonthlySummary(monthString: string) {
       totalExpense += tx.amount;
       
       // Calculate category spending
-      tx.categories.forEach((catLink) => {
+      tx.categories.forEach((catLink: any) => {
         const category = catLink.category;
         if (!expensesByCategory[category.id]) {
           expensesByCategory[category.id] = {
@@ -154,7 +155,7 @@ export async function getMonthlySummary(monthString: string) {
   let ccSpending = 0;
   let ccRepayment = 0;
 
-  ccTransactions.forEach(tx => {
+  ccTransactions.forEach((tx: any) => {
     if (tx.type === 'EXPENSE' && tx.sourceAccountId) {
        ccSpending += tx.amount;
     }
@@ -193,11 +194,11 @@ export async function getBudgetVsActual(monthString: string) {
       include: {
         categories: true
       }
-    }),
+    } as any) as Promise<any[]>,
   ]);
 
-  const spentByCategory = expenses.reduce((acc, tx) => {
-    tx.categories.forEach(catLink => {
+  const spentByCategory = expenses.reduce((acc: any, tx: any) => {
+    tx.categories.forEach((catLink: any) => {
       acc[catLink.categoryId] = (acc[catLink.categoryId] || 0) + tx.amount;
     });
     return acc;
@@ -271,7 +272,7 @@ export async function getCategoryReportData(categoryId: string, monthString: str
   const start = startOfMonth(date);
   const end = endOfMonth(date);
 
-  const transactions = await prisma.transaction.findMany({
+  const transactions = (await (prisma.transaction.findMany({
     where: {
       date: {
         gte: start,
@@ -295,12 +296,12 @@ export async function getCategoryReportData(categoryId: string, monthString: str
     orderBy: {
       date: 'desc'
     }
-  });
+  } as any))) as any[];
 
   let totalIn = 0;
   let totalOut = 0;
 
-  transactions.forEach(tx => {
+  transactions.forEach((tx: any) => {
     if (tx.type === 'INCOME') {
       totalIn += tx.amount;
     } else if (tx.type === 'EXPENSE') {

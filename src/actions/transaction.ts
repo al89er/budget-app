@@ -10,7 +10,7 @@ export async function getTransactions(page = 1, limit = 50, filters?: { type?: s
   const where: any = {};
   if (filters?.type) where.type = filters.type;
   if (filters?.categoryId) {
-    where.categories = {
+    (where as any).categories = {
       some: {
         categoryId: filters.categoryId
       }
@@ -56,9 +56,9 @@ export async function getTransactions(page = 1, limit = 50, filters?: { type?: s
         sourceAccount: true,
         destinationAccount: true,
       },
-    }),
+    } as any),
     prisma.transaction.count({ where }),
-  ]);
+  ]) as [any[], number];
 
   return { transactions, total, page, totalPages: Math.ceil(total / limit) };
 }
@@ -75,7 +75,7 @@ export async function getTransactionById(id: string) {
       sourceAccount: true,
       destinationAccount: true,
     },
-  });
+  } as any) as Promise<any>;
 }
 
 // Helper to extract multiple values from FormData
@@ -121,7 +121,7 @@ export async function createTransaction(formData: FormData) {
         destinationAccountId: result.data.destinationAccountId || null,
         notes: result.data.notes,
         isRetrospective: result.data.isRetrospective,
-      },
+      } as any,
     });
     revalidatePath('/transactions');
     revalidatePath('/accounts');
@@ -166,7 +166,7 @@ export async function updateTransaction(id: string, formData: FormData) {
         destinationAccountId: result.data.destinationAccountId || null,
         notes: result.data.notes,
         isRetrospective: result.data.isRetrospective,
-      },
+      } as any,
     });
     revalidatePath('/transactions');
     revalidatePath('/accounts');
