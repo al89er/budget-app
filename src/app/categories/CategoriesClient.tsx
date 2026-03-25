@@ -1,21 +1,33 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { Card, CardContent, Button, Modal, Input, Select } from '@/components/ui';
 import { createCategory, updateCategory, deleteCategory } from '@/actions/category';
-import { PieChart, Plus, Edit2, Trash2, RefreshCw, Palette } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { 
+  PieChart, 
+  Plus, 
+  Edit2, 
+  Trash2, 
+  RefreshCw, 
+  Palette, 
+  ArrowUpCircle, 
+  ArrowDownCircle, 
+  Repeat,
+  Tag,
+  Settings2
+} from 'lucide-react';
 import { Category } from '@prisma/client';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import useSWR, { useSWRConfig } from 'swr';
 import { getCategories } from '@/actions/category';
-import { useEffect } from 'react';
 
 export default function CategoriesClient() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const { data: categories } = useSWR(mounted ? 'categories' : null, () => getCategories());
+  const { data: categories, isValidating } = useSWR(mounted ? 'categories' : null, () => getCategories());
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -30,9 +42,9 @@ export default function CategoriesClient() {
 
   if (!mounted || !categories) {
     return (
-      <div className="h-64 flex flex-col items-center justify-center text-surface-500 animate-pulse">
+      <div className="h-64 flex flex-col items-center justify-center text-surface-400 animate-pulse">
         <RefreshCw className="h-8 w-8 animate-spin mb-4 text-brand-500" />
-        <p>Loading categories...</p>
+        <p className="font-extrabold uppercase tracking-widest text-xs">Loading Categories...</p>
       </div>
     );
   }
@@ -109,35 +121,64 @@ export default function CategoriesClient() {
 
   const editingCategory = editingId ? categories.find(c => c.id === editingId) : null;
 
-  const CategorySection = ({ title, items, colorClass }: { title: string, items: Category[], colorClass: string }) => (
-    <div className="mb-8">
-      <h3 className="text-lg font-semibold text-surface-900 mb-4">{title}</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+  const CategorySection = ({ title, items, icon: Icon, color }: { title: string, items: Category[], icon: any, color: string }) => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3 pl-2">
+        <div className={cn("p-2.5 rounded-xl nm-inset", color)}>
+          <Icon size={18} />
+        </div>
+        <h3 className="text-xl font-extrabold text-surface-800 tracking-tight font-plus">{title}</h3>
+      </div>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
         {items.map(cat => (
-          <Card key={cat.id} className={!cat.isActive ? 'opacity-60 bg-surface-50' : ''}>
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div 
-                  className="w-4 h-4 rounded-full" 
-                  style={{ backgroundColor: cat.color || '#ccc' }}
-                />
-                <span className="font-medium text-surface-900">{cat.name}</span>
-                {!cat.isActive && <span className="text-xs bg-surface-200 text-surface-600 px-2 py-0.5 rounded-full">Inactive</span>}
+          <div 
+            key={cat.id} 
+            className={cn(
+              "group p-5 rounded-[32px] transition-all duration-300 flex items-center justify-between gap-4",
+              cat.isActive ? "nm-button hover:nm-button-hover cursor-pointer" : "nm-inset opacity-60"
+            )}
+            onClick={() => cat.isActive && openEditModal(cat.id)}
+          >
+            <div className="flex items-center gap-4 min-w-0">
+              <div 
+                className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 nm-inset-deep p-1"
+              >
+                <div className="w-full h-full rounded-xl" style={{ backgroundColor: cat.color || '#ccc' }} />
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => openEditModal(cat.id)} className="text-surface-400 hover:text-brand-600">
-                  <Edit2 size={16} />
-                </button>
-                <button onClick={() => confirmDelete(cat.id)} className="text-surface-400 hover:text-red-600">
-                  <Trash2 size={16} />
-                </button>
+              <div className="min-w-0">
+                <span className="font-extrabold text-surface-800 tracking-tight truncate block group-hover:text-brand-500 transition-colors">
+                  {cat.name}
+                </span>
+                {!cat.isActive && (
+                  <span className="text-[10px] font-extrabold text-surface-400 uppercase tracking-widest mt-0.5 block">
+                    Inactive
+                  </span>
+                )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={(e) => { e.stopPropagation(); openEditModal(cat.id); }} 
+                className="p-2 rounded-xl nm-button-sm text-surface-400 hover:text-brand-500 transition-colors"
+              >
+                <Edit2 size={14} />
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); confirmDelete(cat.id); }} 
+                className="p-2 rounded-xl nm-button-sm text-surface-400 hover:text-rose-500 transition-colors"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
         ))}
         {items.length === 0 && (
-          <div className="col-span-full py-6 text-center text-sm text-surface-500 border border-surface-200 border-dashed rounded-xl">
-            No {title.toLowerCase()} categories found.
+          <div className="col-span-full py-12 text-center nm-inset rounded-[32px] flex flex-col items-center gap-3">
+            <Tag size={32} className="text-surface-200" strokeWidth={1} />
+            <p className="text-surface-400 font-extrabold text-[10px] uppercase tracking-widest">
+              No {title.toLowerCase()} categories found
+            </p>
           </div>
         )}
       </div>
@@ -145,17 +186,23 @@ export default function CategoriesClient() {
   );
 
   return (
-    <div>
-      <div className="flex justify-end mb-6">
-        <Button onClick={openCreateModal}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Category
+    <div className="space-y-12 pb-12">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8">
+        <div>
+          <h2 className="text-3xl font-extrabold text-surface-800 tracking-tight font-plus">Categories</h2>
+          <p className="text-surface-400 text-sm font-bold uppercase tracking-widest mt-1">Organize your transaction labels</p>
+        </div>
+        <Button onClick={openCreateModal} className="w-full sm:w-auto shadow-nm-outset" variant="primary" size="md">
+          <Plus className="h-4 w-4 mr-2" strokeWidth={3} />
+          Create Category
         </Button>
       </div>
 
-      <CategorySection title="Income Categories" items={incomeCategories} colorClass="bg-green-100 text-green-700" />
-      <CategorySection title="Expense Categories" items={expenseCategories} colorClass="bg-red-100 text-red-700" />
-      <CategorySection title="Transfer Categories" items={transferCategories} colorClass="bg-blue-100 text-blue-700" />
+      <div className={cn("space-y-16 transition-all duration-500", isValidating ? "opacity-50" : "opacity-100")}>
+        <CategorySection title="Income" items={incomeCategories} icon={ArrowUpCircle} color="text-emerald-700" />
+        <CategorySection title="Expense" items={expenseCategories} icon={ArrowDownCircle} color="text-rose-700" />
+        <CategorySection title="Transfer" items={transferCategories} icon={Repeat} color="text-brand-500" />
+      </div>
 
       <Modal 
         isOpen={isModalOpen} 

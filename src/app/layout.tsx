@@ -36,8 +36,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} min-h-screen flex bg-surface-50 text-surface-900`}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.className} min-h-screen flex bg-background text-foreground selection:bg-brand-500/30`}>
         <Sidebar />
         <main className="flex-1 flex flex-col h-screen overflow-hidden">
           {/* Main content area scrolls independently */}

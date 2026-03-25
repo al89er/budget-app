@@ -5,14 +5,24 @@ import { Card, Button, Modal, Input, Select } from '@/components/ui';
 import { createTransaction, updateTransaction, deleteTransaction, deleteTransactions, getTransactions } from '@/actions/transaction';
 import { getAccounts } from '@/actions/account';
 import { getCategories } from '@/actions/category';
-import { formatCurrency, formatDate } from '@/lib/utils';
-import { Plus, Edit2, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw, Search } from 'lucide-react';
+import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { 
+  Plus, 
+  Edit2, 
+  Trash2, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  RefreshCw, 
+  Search, 
+  Calendar, 
+  X, 
+  PlusCircle 
+} from 'lucide-react';
 import { Account, Category, Transaction } from '@prisma/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import useSWR, { useSWRConfig } from 'swr';
 import { startOfMonth, endOfMonth, parseISO, isValid } from 'date-fns';
-import { X, PlusCircle } from 'lucide-react';
 import { createCategory } from '@/actions/category';
 
 type PopulatedTransaction = Transaction & { 
@@ -228,89 +238,91 @@ export default function TransactionsClient() {
   const activeAccounts = accounts.filter(a => a.isActive).map(a => ({ value: a.id, label: a.name }));
 
   function renderTxIcon(type: string) {
-    if (type === 'INCOME') return <div className="p-2 bg-green-100 text-green-600 rounded-lg"><ArrowUpRight size={18} /></div>;
-    if (type === 'EXPENSE') return <div className="p-2 bg-red-100 text-red-600 rounded-lg"><ArrowDownRight size={18} /></div>;
-    return <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><RefreshCw size={18} /></div>;
+    const baseClass = "p-2.5 rounded-xl transition-all duration-300 flex items-center justify-center";
+    if (type === 'INCOME') return <div className={cn(baseClass, "nm-inset text-emerald-700")}><ArrowUpRight size={18} /></div>;
+    if (type === 'EXPENSE') return <div className={cn(baseClass, "nm-inset text-rose-700")}><ArrowDownRight size={18} /></div>;
+    return <div className={cn(baseClass, "nm-inset text-brand-700")}><RefreshCw size={18} /></div>;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="w-full sm:w-auto">
-          <h2 className="text-xl font-bold text-surface-900">
+    <div className="space-y-10 pb-12">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
+        <div className="w-full lg:w-auto">
+          <h2 className="text-3xl font-extrabold text-surface-800 tracking-tight font-plus">
             {accountId ? `${accounts.find(a => a.id === accountId)?.name}` : 'Transactions'}
           </h2>
-          <div className="flex flex-col sm:flex-row gap-3 mt-4 w-full sm:w-auto">
-            <div className="relative flex-grow sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-surface-400" />
+          <div className="flex flex-col sm:flex-row gap-4 mt-6 w-full lg:w-auto">
+            <div className="relative flex-grow sm:w-80">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-surface-400" />
               <input
                 type="text"
-                placeholder="Search description, account..."
+                placeholder="Search anything..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white border border-surface-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-surface-700 placeholder:text-surface-400"
+                className="w-full pl-12 pr-12 py-3 bg-background nm-inset-deep rounded-2xl text-sm font-bold text-surface-800 focus:outline-none focus:ring-2 focus:ring-brand-500/10 transition-all font-plus placeholder:text-surface-300"
               />
               {searchTerm && (
                 <button 
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 p-1"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 p-1"
                 >
                   <X className="h-4 w-4" />
                 </button>
               )}
               {isValidating && (
-                <div className={`absolute ${searchTerm ? 'right-10' : 'right-3'} top-1/2 -translate-y-1/2`}>
-                  <RefreshCw className="h-3 w-3 animate-spin text-brand-500" />
+                <div className={`absolute ${searchTerm ? 'right-12' : 'right-4'} top-1/2 -translate-y-1/2`}>
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin text-brand-500" />
                 </div>
               )}
             </div>
           </div>
           {(accountId || categoryId || type || startDate || endDate) && (
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2 mt-4">
               {accountId && (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-brand-50 text-brand-700 text-xs font-medium">
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full nm-inset text-brand-500 text-[10px] font-extrabold uppercase tracking-widest">
                   Account: {accounts.find(a => a.id === accountId)?.name}
                   <button onClick={() => {
                     const params = new URLSearchParams(searchParams.toString());
                     params.delete('accountId');
                     router.push(`/transactions?${params.toString()}`);
-                  }}><X size={12} /></button>
+                  }} className="hover:text-brand-700 transition-colors"><X size={12} strokeWidth={3} /></button>
                 </span>
               )}
               {startDate && (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-brand-50 text-brand-700 text-xs font-medium">
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full nm-inset text-brand-500 text-[10px] font-extrabold uppercase tracking-widest">
                   From: {formatDate(startDate)}
                   <button onClick={() => {
                     const params = new URLSearchParams(searchParams.toString());
                     params.delete('startDate');
                     router.push(`/transactions?${params.toString()}`);
-                  }}><X size={12} /></button>
+                  }} className="hover:text-brand-700 transition-colors"><X size={12} strokeWidth={3} /></button>
                 </span>
               )}
               {endDate && (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-brand-50 text-brand-700 text-xs font-medium">
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full nm-inset text-brand-500 text-[10px] font-extrabold uppercase tracking-widest">
                   To: {formatDate(endDate)}
                   <button onClick={() => {
                     const params = new URLSearchParams(searchParams.toString());
                     params.delete('endDate');
                     router.push(`/transactions?${params.toString()}`);
-                  }}><X size={12} /></button>
+                  }} className="hover:text-brand-700 transition-colors"><X size={12} strokeWidth={3} /></button>
                 </span>
               )}
               <button 
                 onClick={() => router.push('/transactions')}
-                className="text-xs text-surface-500 hover:text-surface-700 underline"
+                className="text-xs font-bold text-surface-400 hover:text-brand-500 underline decoration-2 underline-offset-4 ml-2 transition-colors uppercase tracking-widest text-[10px]"
               >
-                Clear all filters
+                Clear Filters
               </button>
             </div>
           )}
         </div>
-        <div className="flex flex-col xs:flex-row gap-2 items-center w-full sm:w-auto">
-          <div className="flex flex-1 items-center gap-2 bg-surface-50 p-1.5 rounded-lg border border-surface-200 w-full sm:w-auto overflow-x-auto">
+        <div className="flex flex-col sm:flex-row gap-4 items-center w-full lg:w-auto">
+          <div className="flex flex-1 items-center gap-3 nm-inset px-4 py-2.5 rounded-2xl w-full sm:w-auto overflow-x-auto">
+            <Calendar size={14} className="text-surface-400 shrink-0" />
             <input 
               type="date" 
-              className="bg-transparent border-none text-xs focus:ring-0 p-0 w-24"
+              className="bg-transparent border-none text-xs font-bold text-surface-800 focus:ring-0 p-0 w-24 uppercase"
               value={startStr || ''}
               onChange={(e) => {
                 const params = new URLSearchParams(searchParams.toString());
@@ -319,10 +331,10 @@ export default function TransactionsClient() {
                 router.push(`/transactions?${params.toString()}`);
               }}
             />
-            <span className="text-surface-400 text-[10px] font-bold">TO</span>
+            <span className="text-surface-300 text-[10px] font-extrabold tracking-widest">TO</span>
             <input 
               type="date" 
-              className="bg-transparent border-none text-xs focus:ring-0 p-0 w-24"
+              className="bg-transparent border-none text-xs font-bold text-surface-800 focus:ring-0 p-0 w-24 uppercase"
               value={endStr || ''}
               onChange={(e) => {
                 const params = new URLSearchParams(searchParams.toString());
@@ -331,185 +343,205 @@ export default function TransactionsClient() {
                 router.push(`/transactions?${params.toString()}`);
               }}
             />
-            {(startStr || endStr) && (
-              <button 
-                onClick={() => {
-                  const params = new URLSearchParams(searchParams.toString());
+          </div>
+          <div className="hidden sm:block">
+            <Select 
+              className="w-40 text-xs h-11"
+              value={startStr && endStr ? 'custom' : 'all'}
+              onChange={(e) => {
+                const val = e.target.value;
+                const params = new URLSearchParams(searchParams.toString());
+                if (val === 'this-month') {
+                  params.set('startDate', startOfMonth(new Date()).toISOString().split('T')[0]);
+                  params.set('endDate', endOfMonth(new Date()).toISOString().split('T')[0]);
+                } else if (val === 'all') {
                   params.delete('startDate');
                   params.delete('endDate');
-                  router.push(`/transactions?${params.toString()}`);
-                }}
-                className="ml-1 p-0.5 hover:bg-surface-200 rounded-full text-surface-400"
-              >
-                <X size={12} />
-              </button>
-            )}
+                }
+                router.push(`/transactions?${params.toString()}`);
+              }}
+              options={[
+                { value: 'all', label: 'All Time' },
+                { value: 'this-month', label: 'This Month' },
+                { value: 'custom', label: 'Custom Range' },
+              ]}
+            />
           </div>
-          <Select 
-            className="w-32 text-xs h-9"
-            value={startStr && endStr ? 'custom' : 'all'}
-            onChange={(e) => {
-              const val = e.target.value;
-              const params = new URLSearchParams(searchParams.toString());
-              if (val === 'this-month') {
-                params.set('startDate', startOfMonth(new Date()).toISOString().split('T')[0]);
-                params.set('endDate', endOfMonth(new Date()).toISOString().split('T')[0]);
-              } else if (val === 'all') {
-                params.delete('startDate');
-                params.delete('endDate');
-              }
-              router.push(`/transactions?${params.toString()}`);
-            }}
-            options={[
-              { value: 'all', label: 'All Time' },
-              { value: 'this-month', label: 'This Month' },
-              { value: 'custom', label: 'Custom Range' },
-            ]}
-          />
-          <Button onClick={openCreateModal} className="w-full xs:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            Add
+          <Button onClick={openCreateModal} className="w-full sm:w-auto shadow-nm-outset" variant="primary" size="md">
+            <Plus className="h-4 w-4 mr-2" strokeWidth={3} />
+            Add New
           </Button>
         </div>
       </div>
 
-      <Card>
-        {/* Table Controls */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 p-4 border-b border-surface-100">
-          <div className="flex items-center gap-2">
-            {selectedIds.size > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-50 border border-brand-100 rounded-lg text-sm text-brand-700 animate-in fade-in slide-in-from-left-2 transition-all">
-                <span className="font-semibold">{selectedIds.size} selected</span>
-                <div className="h-4 w-px bg-brand-200 mx-1" />
-                <button 
-                  onClick={() => setIsBulkDeleteModalOpen(true)}
-                  className="flex items-center gap-1.5 text-red-600 hover:text-red-700 font-medium transition-colors"
-                >
-                  <Trash2 size={14} /> Delete
-                </button>
+      <div className="space-y-6">
+        {/* Bulk Actions Bar */}
+        {selectedIds.size > 0 && (
+          <div className="sticky top-4 z-30 flex items-center justify-between px-6 py-4 bg-background nm-flat rounded-2xl animate-in slide-in-from-top-4 duration-300">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-extrabold text-brand-500 uppercase tracking-widest">{selectedIds.size} Selected</span>
+              <button 
+                onClick={() => setSelectedIds(new Set())}
+                className="text-xs font-bold text-surface-400 hover:text-surface-600 underline"
+              >
+                Deselect All
+              </button>
+            </div>
+            <div className="flex gap-3">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setIsBulkDeleteModalOpen(true)}
+                className="text-rose-600 hover:text-rose-700"
+              >
+                <Trash2 size={16} className="mr-2" />
+                Delete Selected
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Transaction List */}
+        <div className={cn("grid grid-cols-1 gap-4 transition-all duration-500", isValidating ? "opacity-50" : "opacity-100")}>
+          <div className="flex items-center justify-between px-4 mb-2">
+            <div className="flex items-center gap-3">
+              <input 
+                 type="checkbox" 
+                 className="rounded-lg nm-inset-deep border-none text-brand-500 focus:ring-brand-500/20 h-5 w-5 cursor-pointer"
+                 checked={transactions.length > 0 && selectedIds.size === transactions.length}
+                 onChange={toggleSelectAll}
+              />
+              <span className="text-[10px] font-extrabold text-surface-400 uppercase tracking-widest">Select All</span>
+            </div>
+            <span className="text-[10px] font-extrabold text-surface-400 uppercase tracking-widest">
+              {transactions.length} of {total} Records
+            </span>
+          </div>
+
+          {transactions.map((tx) => (
+            <div 
+              key={tx.id} 
+              className={cn(
+                "group relative flex items-center gap-4 p-5 rounded-[24px] transition-all duration-300 cursor-pointer overflow-hidden",
+                selectedIds.has(tx.id) ? "nm-inset" : "nm-button hover:nm-button-hover"
+              )}
+              onClick={() => openEditModal(tx)}
+            >
+              <div 
+                className="shrink-0" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleSelect(tx.id);
+                }}
+              >
+                <input 
+                  type="checkbox" 
+                  className="rounded-lg nm-inset-deep border-none text-brand-500 focus:ring-brand-500/20 h-6 w-6 cursor-pointer"
+                  checked={selectedIds.has(tx.id)}
+                  readOnly
+                />
               </div>
-            )}
-            {selectedIds.size === 0 && (
-              <span className="text-sm text-surface-500">Select transactions to perform bulk actions</span>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2 w-full md:w-auto">
-            {/* Filter indicators or search can go here */}
-          </div>
+
+              <div className="flex-1 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-5">
+                  <div className="shrink-0">
+                    {renderTxIcon(tx.type)}
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-surface-800 tracking-tight text-base leading-tight group-hover:text-brand-500 transition-colors">
+                      {tx.description}
+                    </h4>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                      <span className="text-[10px] font-extrabold text-surface-400 uppercase tracking-widest">{formatDate(tx.date)}</span>
+                      <div className="h-1 w-1 rounded-full bg-surface-300" />
+                      <span className="text-[10px] font-extrabold text-brand-500/70 uppercase tracking-widest">
+                        {tx.type === 'EXPENSE' ? tx.sourceAccount?.name : tx.type === 'INCOME' ? tx.destinationAccount?.name : `${tx.sourceAccount?.name} → ${tx.destinationAccount?.name}`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between md:justify-end gap-6">
+                  <div className="flex flex-wrap gap-1.5 justify-end hidden sm:flex">
+                    {tx.categories.map((catLink) => (
+                      <span 
+                         key={catLink.category.id}
+                         className="px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-tight rounded-lg nm-inset"
+                         style={{ color: catLink.category.color || '#6B7280' }}
+                      >
+                        {catLink.category.name}
+                      </span>
+                    ))}
+                  </div>
+                  
+                  <div className="text-right">
+                    <p className={cn(
+                      "text-xl font-extrabold tracking-tight font-plus whitespace-nowrap",
+                      tx.type === 'INCOME' ? 'text-emerald-700' : tx.type === 'EXPENSE' ? 'text-rose-700' : 'text-brand-700'
+                    )}>
+                      {tx.type === 'INCOME' ? '+' : tx.type === 'EXPENSE' ? '-' : ''}
+                      {formatCurrency(tx.amount)}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity hidden lg:flex">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); openEditModal(tx); }}
+                      className="p-2 rounded-xl nm-button hover:text-brand-500 transition-colors"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); confirmDelete(tx.id); }}
+                      className="p-2 rounded-xl nm-button hover:text-rose-600"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {transactions.length === 0 && (
+            <div className="py-20 text-center nm-inset rounded-[32px]">
+              <p className="text-surface-400 font-extrabold uppercase tracking-widest text-sm">No transactions found</p>
+            </div>
+          )}
         </div>
 
-        <div className={`overflow-x-auto transition-opacity duration-200 ${isValidating ? 'opacity-60' : 'opacity-100'}`}>
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-surface-500 uppercase bg-surface-50 border-b border-surface-200">
-              <tr>
-                <th className="px-6 py-3 w-10">
-                   <input 
-                     type="checkbox" 
-                     className="rounded border-surface-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
-                     checked={transactions.length > 0 && selectedIds.size === transactions.length}
-                     onChange={toggleSelectAll}
-                   />
-                </th>
-                <th className="px-6 py-3 hidden sm:table-cell">Date</th>
-                <th className="px-6 py-3">Description</th>
-                <th className="px-6 py-3 hidden md:table-cell">Category</th>
-                <th className="px-6 py-3 hidden lg:table-cell">Account(s)</th>
-                <th className="px-6 py-3 text-right">Amount</th>
-                <th className="px-6 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((tx) => (
-                <tr 
-                  key={tx.id} 
-                  className={`border-b border-surface-100 hover:bg-surface-50 transition-colors ${selectedIds.has(tx.id) ? 'bg-brand-50/50' : 'bg-white'}`}
-                >
-                  <td className="px-6 py-4">
-                    <input 
-                      type="checkbox" 
-                      className="rounded border-surface-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
-                      checked={selectedIds.has(tx.id)}
-                      onChange={() => toggleSelect(tx.id)}
-                    />
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-surface-500 hidden sm:table-cell">
-                    {formatDate(tx.date)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      {renderTxIcon(tx.type)}
-                      <div>
-                        <span className="font-medium text-surface-900 block">{tx.description}</span>
-                        <span className="text-[10px] text-surface-400 sm:hidden">{formatDate(tx.date)}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 hidden md:table-cell">
-                    <div className="flex flex-wrap gap-1">
-                      {tx.categories && tx.categories.length > 0 ? (
-                        tx.categories.map((catLink) => (
-                          <span 
-                             key={catLink.category.id}
-                             className="px-2 py-0.5 text-[10px] rounded-md font-medium"
-                             style={{ 
-                               backgroundColor: catLink.category.color ? `${catLink.category.color}20` : '#f1f5f9',
-                               color: catLink.category.color || '#475569'
-                             }}
-                          >
-                            {catLink.category.name}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-surface-400italic italic">Uncategorized</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-surface-600 space-y-1 hidden lg:table-cell">
-                    {tx.type === 'EXPENSE' && <div>From: {tx.sourceAccount?.name}</div>}
-                    {tx.type === 'INCOME' && <div>To: {tx.destinationAccount?.name}</div>}
-                    {tx.type === 'TRANSFER' && (
-                      <div className="text-xs">
-                        <span className="text-red-500">Out: {tx.sourceAccount?.name}</span><br/>
-                        <span className="text-green-500">In: {tx.destinationAccount?.name}</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap ${
-                    tx.type === 'INCOME' ? 'text-green-600' : 
-                    tx.type === 'EXPENSE' ? 'text-red-600' : 'text-blue-600'
-                  }`}>
-                    {tx.type === 'INCOME' ? '+' : tx.type === 'EXPENSE' ? '-' : ''}
-                    {formatCurrency(tx.amount)}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => openEditModal(tx)} className="text-surface-400 hover:text-brand-600 p-1 rounded hover:bg-surface-100 transition-colors">
-                        <Edit2 size={16} />
-                      </button>
-                      <button onClick={() => confirmDelete(tx.id)} className="text-surface-400 hover:text-red-600 p-1 rounded hover:bg-surface-100 transition-colors">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {transactions.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-surface-500">
-                    No transactions found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="px-6 py-4 bg-surface-50 border-t border-surface-200 flex items-center justify-between text-sm text-surface-500">
-          <span>Showing {transactions.length} of {data.total} records</span>
-          <div className="flex gap-2">
-             {/* Pagination controls could be implemented here */}
+        {/* Pagination placeholder */}
+        <div className="flex items-center justify-center pt-10">
+          <div className="flex gap-4">
+             {page > 1 && (
+               <Button 
+                 variant="secondary" 
+                 size="sm" 
+                 onClick={() => {
+                   const params = new URLSearchParams(searchParams.toString());
+                   params.set('page', (page - 1).toString());
+                   router.push(`/transactions?${params.toString()}`);
+                 }}
+               >
+                 Previous
+               </Button>
+             )}
+             {totalPages > page && (
+               <Button 
+                 variant="secondary" 
+                 size="sm"
+                 onClick={() => {
+                   const params = new URLSearchParams(searchParams.toString());
+                   params.set('page', (page + 1).toString());
+                   router.push(`/transactions?${params.toString()}`);
+                 }}
+               >
+                 Next
+               </Button>
+             )}
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Transaction Form Modal */}
       <Modal 

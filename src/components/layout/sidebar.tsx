@@ -11,9 +11,12 @@ import {
   Settings,
   Menu,
   X,
-  Repeat
+  Repeat,
+  TrendingUp,
+  CreditCard
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -22,83 +25,86 @@ const navigation = [
   { name: 'Accounts', href: '/accounts', icon: Wallet },
   { name: 'Categories', href: '/categories', icon: PieChart },
   { name: 'Budgets', href: '/budgets', icon: Target },
-  { name: 'Reports', href: '/reports', icon: PieChart },
+  { name: 'Reports', href: '/reports', icon: TrendingUp },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return null;
 
   return (
-    <>
-      {/* Mobile menu button - Hidden as we use Bottom Nav now */}
-      <div className="hidden md:hidden fixed top-4 right-4 z-50">
-        <button
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className="p-2 rounded-md bg-white text-surface-900 shadow-sm border border-surface-200"
-        >
-          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
-      </div>
+    <div className="hidden md:flex fixed inset-y-0 left-0 z-40 w-72 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 border-none">
+      <div className="flex flex-col h-full w-full pt-8 pb-10 px-6">
+        {/* Logo Area */}
+        <div className="mb-14 px-4">
+          <Link href="/" className="flex items-center gap-4 group">
+            <div className="nm-inset p-3.5 rounded-2xl group-hover:nm-flat transition-all duration-500 text-brand-500">
+              <Wallet className="h-7 w-7" strokeWidth={2.5} />
+            </div>
+            <div>
+              <span className="text-2xl font-black text-surface-800 tracking-tighter block leading-none font-plus">
+                Personal
+              </span>
+              <span className="text-xs font-extrabold text-brand-500 uppercase tracking-[0.2em] mt-1.5 block">
+                Budget
+              </span>
+            </div>
+          </Link>
+        </div>
 
-      {/* Sidebar Content */}
-      <div className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-surface-200 shadow-sm transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 hidden md:flex
-        ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        <div className="flex flex-col h-full">
-          {/* Logo Area */}
-          <div className="h-16 flex items-center px-6 border-b border-surface-100">
-            <span className="text-xl font-bold text-brand-600 flex items-center gap-2">
-              <Wallet className="h-6 w-6" />
-              PB Tracker
-            </span>
-          </div>
+        {/* Nav Links */}
+        <nav className="flex-1 space-y-4 overflow-y-auto no-scrollbar py-2">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-surface-400 mb-6 px-4">Menu</p>
+          {navigation.map((item) => {
+            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+            const Icon = item.icon;
+            
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className={cn(
+                  "group flex items-center px-6 py-4 text-xs font-black uppercase tracking-widest rounded-[24px] transition-all duration-300 gap-4",
+                  isActive 
+                    ? "nm-inset text-brand-500" 
+                    : "text-surface-500 hover:nm-button-hover hover:text-surface-800"
+                )}
+              >
+                <Icon 
+                  className={cn(
+                    "h-5 w-5 transition-colors duration-300",
+                    isActive ? "text-brand-500" : "text-surface-300 group-hover:text-surface-600"
+                  )} 
+                  strokeWidth={isActive ? 3 : 2}
+                />
+                <span className="mt-0.5">{item.name}</span>
+              </Link>
+            );
+          })}
+        </nav>
 
-          {/* Nav Links */}
-          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
-              const Icon = item.icon;
-              
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`
-                    group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors
-                    ${isActive 
-                      ? 'bg-brand-50 text-brand-700' 
-                      : 'text-surface-600 hover:bg-surface-50 hover:text-surface-900'
-                    }
-                  `}
-                >
-                  <Icon 
-                    className={`mr-3 h-5 w-5 flex-shrink-0 transition-colors ${
-                      isActive ? 'text-brand-600' : 'text-surface-400 group-hover:text-surface-600'
-                    }`} 
-                    aria-hidden="true" 
-                  />
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Bottom section (Settings placeholder) */}
-          <div className="p-4 border-t border-surface-100">
-            <Link
-              href="/settings"
-              onClick={() => setMobileOpen(false)}
-              className="group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg text-surface-600 hover:bg-surface-50 hover:text-surface-900 transition-colors"
-            >
-              <Settings className="mr-3 h-5 w-5 text-surface-400 group-hover:text-surface-600" />
-              Settings
-            </Link>
-          </div>
+        {/* Bottom section */}
+        <div className="pt-8 border-none mt-auto">
+          <Link
+            href="/settings"
+            className={cn(
+              "group flex items-center px-6 py-4 text-xs font-black uppercase tracking-widest rounded-[24px] transition-all duration-300 gap-4",
+              pathname === '/settings' 
+                ? "nm-inset text-brand-500" 
+                : "text-surface-500 hover:nm-button-hover hover:text-surface-800"
+            )}
+          >
+            <Settings className={cn(
+              "h-5 w-5 transition-colors",
+              pathname === '/settings' ? "text-brand-500" : "text-surface-300 group-hover:text-surface-600"
+            )} />
+            <span className="mt-0.5">Settings</span>
+          </Link>
         </div>
       </div>
-    </>
+    </div>
   );
 }

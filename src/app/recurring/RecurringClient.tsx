@@ -1,10 +1,23 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition, useMemo, useEffect } from 'react';
 import { Card, CardContent, Button, Modal, Input, Select } from '@/components/ui';
 import { createRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction } from '@/actions/recurring';
-import { formatCurrency, formatDate } from '@/lib/utils';
-import { Plus, Edit2, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw, Repeat, PlusCircle } from 'lucide-react';
+import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  ArrowUpRight,
+  ArrowDownRight,
+  RefreshCw,
+  Repeat,
+  PlusCircle,
+  X,
+  Search,
+  Calendar,
+  AlertCircle
+} from 'lucide-react';
 import { Account, Category, RecurringTransaction } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -12,10 +25,8 @@ import useSWR, { useSWRConfig } from 'swr';
 import { getRecurringTransactions } from '@/actions/recurring';
 import { getAccounts } from '@/actions/account';
 import { getCategories, createCategory } from '@/actions/category';
-import { useEffect } from 'react';
-import { X, Search } from 'lucide-react';
 
-type PopulatedRecurring = RecurringTransaction & { 
+type PopulatedRecurring = RecurringTransaction & {
   categories: {
     category: Category;
   }[];
@@ -27,21 +38,21 @@ export default function RecurringClient() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const { data: recurringTxs, mutate: mutateRecurring } = useSWR(
-    mounted ? 'recurring' : null, 
+  const { data: recurringTxs, mutate: mutateRecurring, isValidating } = useSWR(
+    mounted ? 'recurring' : null,
     () => getRecurringTransactions().then(res => res as PopulatedRecurring[])
   );
   const { data: accounts } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
   const { data: categories } = useSWR(mounted ? 'categories' : null, () => getCategories());
   const { mutate: globalMutate } = useSWRConfig();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   const filteredRecurringTxs = useMemo(() => {
     if (!recurringTxs) return [];
     if (!searchTerm.trim()) return recurringTxs;
     const term = searchTerm.toLowerCase();
-    return recurringTxs.filter(tx => 
+    return recurringTxs.filter(tx =>
       tx.description.toLowerCase().includes(term) ||
       tx.sourceAccount?.name.toLowerCase().includes(term) ||
       tx.destinationAccount?.name.toLowerCase().includes(term) ||
@@ -67,9 +78,10 @@ export default function RecurringClient() {
 
   if (!mounted || !recurringTxs || !accounts || !categories) {
     return (
-      <Card className="animate-pulse">
-        <div className="h-64 bg-surface-100 rounded-lg"></div>
-      </Card>
+      <div className="h-64 flex flex-col items-center justify-center text-surface-400 animate-pulse">
+        <RefreshCw className="h-8 w-8 animate-spin mb-4 text-brand-500" />
+        <p className="font-extrabold uppercase tracking-widest text-xs">Loading Automations...</p>
+      </div>
     );
   }
 
@@ -92,7 +104,7 @@ export default function RecurringClient() {
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    
+
     const formData = new FormData(e.currentTarget);
     // Append all selected category IDs
     formData.delete('categoryIds');
@@ -197,108 +209,103 @@ export default function RecurringClient() {
         </Button>
       </div>
 
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-surface-500 uppercase bg-surface-50 border-b border-surface-200">
-              <tr>
-                <th className="px-6 py-3">Details</th>
-                <th className="px-6 py-3 hidden md:table-cell">Frequency</th>
-                <th className="px-6 py-3 hidden sm:table-cell">Status</th>
-                <th className="px-6 py-3 hidden lg:table-cell">Account(s)</th>
-                <th className="px-6 py-3 text-right">Amount</th>
-                <th className="px-6 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRecurringTxs.map((tx) => (
-                <tr key={tx.id} className="bg-white border-b border-surface-100 hover:bg-surface-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      {renderTxIcon(tx.type)}
-                      <div>
-                        <span className="font-medium text-surface-900 block line-clamp-1">{tx.description}</span>
-                        <div className="flex flex-wrap items-center gap-1 mt-1 text-[10px] text-surface-400">
-                          {tx.categories?.map(catLink => (
-                            <span 
-                              key={catLink.category.id}
-                              className="px-1.5 py-0.5 rounded bg-surface-100 text-surface-600 border border-surface-200"
-                            >
-                              {catLink.category.name}
-                            </span>
-                          ))}
-                          {(!tx.categories || tx.categories.length === 0) && <span>Uncategorized</span>}
-                          <span className="md:hidden ml-1">&bull; {tx.frequency.toLowerCase()}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-surface-600 hidden md:table-cell">
-                    <div className="flex items-center gap-2">
-                       <Repeat size={14} className="text-brand-500" />
-                       {tx.frequency}
-                    </div>
-                    <div className="text-xs text-surface-400 mt-1">
-                      Started: {formatDate(tx.startDate)}
-                    </div>
-                    {tx.endDate && (
-                      <div className="text-xs text-surface-400">
-                        Ends: {formatDate(tx.endDate)}
-                      </div>
-                    )}
-                    {tx.maxOccurrences && (
-                      <div className="text-xs text-surface-400">
-                        Runs: {tx.currentOccurrences} / {tx.maxOccurrences}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap hidden sm:table-cell">
-                    {tx.isActive ? (
-                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">Active</span>
-                    ) : (
-                      <span className="px-2 py-1 bg-surface-200 text-surface-600 rounded text-xs font-medium">Paused</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-surface-600 text-xs space-y-1 hidden lg:table-cell">
-                    {tx.type === 'EXPENSE' && <div>From: {tx.sourceAccount?.name}</div>}
-                    {tx.type === 'INCOME' && <div>To: {tx.destinationAccount?.name}</div>}
-                    {tx.type === 'TRANSFER' && (
-                      <div className="text-xs">
-                        <span className="text-red-500">Out: {tx.sourceAccount?.name}</span><br/>
-                        <span className="text-green-500">In: {tx.destinationAccount?.name}</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className={`px-6 py-4 text-right font-semibold whitespace-nowrap ${
-                    tx.type === 'INCOME' ? 'text-green-600' : 
-                    tx.type === 'EXPENSE' ? 'text-red-600' : 'text-blue-600'
-                  }`}>
-                    {tx.type === 'INCOME' ? '+' : tx.type === 'EXPENSE' ? '-' : ''}
-                    {formatCurrency(tx.amount)}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => openEditModal(tx)} className="text-surface-400 hover:text-brand-600">
-                        <Edit2 size={16} />
-                      </button>
-                      <button onClick={() => confirmDelete(tx.id)} className="text-surface-400 hover:text-red-600">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {recurringTxs.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-surface-500">
-                    No recurring transactions setup yet. Automate your bills here!
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6 transition-all duration-500", isValidating ? "opacity-50" : "opacity-100")}>
+        {filteredRecurringTxs.map((tx) => (
+          <div 
+            key={tx.id} 
+            className="group nm-button hover:nm-button-hover p-6 rounded-[32px] transition-all duration-300 cursor-pointer flex flex-col justify-between gap-6"
+            onClick={() => openEditModal(tx)}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-4">
+                <div className="shrink-0">
+                  {renderTxIcon(tx.type)}
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-surface-800 tracking-tight text-lg group-hover:text-brand-500 transition-colors">
+                    {tx.description}
+                  </h4>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={cn(
+                      "px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest nm-inset",
+                      tx.isActive ? "text-emerald-700" : "text-surface-400"
+                    )}>
+                      {tx.isActive ? 'Active' : 'Paused'}
+                    </span>
+                    <span className="text-[10px] font-extrabold text-surface-400 uppercase tracking-widest">
+                      &bull; {tx.frequency}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); openEditModal(tx); }}
+                  className="p-2 rounded-xl nm-button-sm hover:text-brand-500 transition-colors"
+                >
+                  <Edit2 size={16} />
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); confirmDelete(tx.id); }}
+                  className="p-2 rounded-xl nm-button-sm hover:text-rose-600"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="nm-inset p-4 rounded-2xl flex flex-col justify-center">
+                <p className="text-[10px] font-extrabold text-surface-400 uppercase tracking-widest mb-1">Schedule</p>
+                <div className="flex items-center gap-2 text-surface-700 font-bold text-xs uppercase">
+                  <Repeat size={12} className="text-brand-500" />
+                  Every {tx.frequency.toLowerCase()}
+                </div>
+              </div>
+              <div className="nm-inset p-4 rounded-2xl flex flex-col justify-center text-right">
+                <p className="text-[10px] font-extrabold text-surface-400 uppercase tracking-widest mb-1">Amount</p>
+                <p className={cn(
+                  "text-lg font-extrabold tracking-tight font-plus",
+                  tx.type === 'INCOME' ? 'text-emerald-700' : tx.type === 'EXPENSE' ? 'text-rose-700' : 'text-brand-700'
+                )}>
+                  {tx.type === 'INCOME' ? '+' : tx.type === 'EXPENSE' ? '-' : ''}
+                  {formatCurrency(tx.amount)}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between px-2">
+              <div className="flex flex-wrap gap-1.5">
+                {tx.categories.map((catLink) => (
+                  <span 
+                    key={catLink.category.id}
+                    className="px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-tight rounded-md nm-inset text-surface-500"
+                    style={{ color: catLink.category.color ?? undefined }}
+                  >
+                    {catLink.category.name}
+                  </span>
+                ))}
+              </div>
+              <div className="flex flex-col items-end">
+                <p className="text-[9px] font-extrabold text-surface-300 uppercase tracking-widest">Next Run</p>
+                <p className="text-[10px] font-extrabold text-surface-500 uppercase">{formatDate(tx.startDate)}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {filteredRecurringTxs.length === 0 && (
+          <div className="col-span-full py-24 text-center nm-inset rounded-[40px] flex flex-col items-center gap-4">
+            <div className="p-6 rounded-full nm-inset text-surface-300">
+              <Repeat size={48} strokeWidth={1} />
+            </div>
+            <div>
+              <p className="text-surface-600 font-extrabold text-lg tracking-tight">No automations found</p>
+              <p className="text-surface-400 text-sm mt-1">Start by adding your first recurring transaction!</p>
+            </div>
+          </div>
+        )}
+      </div>
 
       <Modal 
         isOpen={isModalOpen} 

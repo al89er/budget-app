@@ -1,17 +1,32 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { Card, CardContent, Button, Modal, Input, Select } from '@/components/ui';
 import { createAccount, updateAccount, setAccountActive } from '@/actions/account';
-import { formatCurrency } from '@/lib/utils';
-import { Wallet, Plus, Edit2, Archive, ArchiveRestore, RefreshCw, History, ArrowUpRight, ArrowDownRight, ExternalLink } from 'lucide-react';
+import { cn, formatCurrency } from '@/lib/utils';
+import { 
+  Wallet, 
+  Plus, 
+  Edit2, 
+  Archive, 
+  ArchiveRestore, 
+  RefreshCw, 
+  History, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  ExternalLink,
+  CreditCard,
+  Banknote,
+  Smartphone,
+  Trophy,
+  MoreHorizontal
+} from 'lucide-react';
 import { Account } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import useSWR, { useSWRConfig } from 'swr';
 import { getAccounts } from '@/actions/account';
 import { getTransactions } from '@/actions/transaction';
-import { useEffect } from 'react';
 
 type AccountWithBalance = Account & { currentBalance: number };
 
@@ -19,7 +34,7 @@ export default function AccountsClient() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const { data: accounts } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
+  const { data: accounts, isValidating } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [confirmToggleId, setConfirmToggleId] = useState<{ id: string, currentStatus: boolean } | null>(null);
@@ -38,11 +53,26 @@ export default function AccountsClient() {
 
   if (!mounted || !accounts) {
     return (
-      <div className="h-64 flex flex-col items-center justify-center text-surface-500 animate-pulse">
+      <div className="h-64 flex flex-col items-center justify-center text-surface-400 animate-pulse">
         <RefreshCw className="h-8 w-8 animate-spin mb-4 text-brand-500" />
-        <p>Updating account totals...</p>
+        <p className="font-extrabold uppercase tracking-widest text-xs">Fetching Account Totals...</p>
       </div>
     );
+  }
+
+  function getAccountIcon(type: string) {
+    if (type === 'CREDIT_CARD') return <CreditCard size={24} />;
+    if (type === 'CASH') return <Banknote size={24} />;
+    if (type === 'EWALLET') return <Smartphone size={24} />;
+    if (type === 'SAVINGS') return <Trophy size={24} />;
+    return <Wallet size={24} />;
+  }
+
+  function renderTxIcon(type: string) {
+    const baseClass = "p-2.5 rounded-xl transition-all duration-300 flex items-center justify-center";
+    if (type === 'INCOME') return <div className={cn(baseClass, "nm-inset text-emerald-700")}><ArrowUpRight size={18} /></div>;
+    if (type === 'EXPENSE') return <div className={cn(baseClass, "nm-inset text-rose-700")}><ArrowDownRight size={18} /></div>;
+    return <div className={cn(baseClass, "nm-inset text-brand-500")}><RefreshCw size={18} /></div>;
   }
 
   async function openCreateModal() {
@@ -101,67 +131,89 @@ export default function AccountsClient() {
   const editingAccount = editingId ? accounts.find(a => a.id === editingId) : null;
   const historyAccount = selectedHistoryAccountId ? accounts.find(a => a.id === selectedHistoryAccountId) : null;
 
-  function renderTxIcon(type: string) {
-    if (type === 'INCOME') return <div className="p-2 bg-green-100 text-green-600 rounded-lg"><ArrowUpRight size={18} /></div>;
-    if (type === 'EXPENSE') return <div className="p-2 bg-red-100 text-red-600 rounded-lg"><ArrowDownRight size={18} /></div>;
-    return <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><RefreshCw size={18} /></div>;
-  }
-
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h2 className="text-xl font-bold text-surface-900">Your Accounts</h2>
-        <Button onClick={openCreateModal} className="w-full sm:w-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Account
+    <div className="space-y-10 pb-12">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8">
+        <div>
+          <h2 className="text-3xl font-extrabold text-surface-800 tracking-tight font-plus">Your Accounts</h2>
+          <p className="text-surface-400 text-sm font-bold uppercase tracking-widest mt-1">Manage your liquidity and balances</p>
+        </div>
+        <Button onClick={openCreateModal} className="w-full sm:w-auto shadow-nm-outset" variant="primary" size="md">
+          <Plus className="h-4 w-4 mr-2" strokeWidth={3} />
+          Create Account
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className={cn("grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 transition-all duration-500", isValidating ? "opacity-50" : "opacity-100")}>
         {accounts.map(account => (
-          <Card key={account.id} className={!account.isActive ? 'opacity-60 bg-surface-50' : ''}>
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${account.isActive ? 'bg-brand-50 text-brand-600' : 'bg-surface-200 text-surface-500'}`}>
-                    <Wallet size={24} />
-                  </div>
-                  <div 
-                    className="cursor-pointer group flex-1"
-                    onClick={() => setSelectedHistoryAccountId(account.id)}
-                  >
-                    <h3 className="font-semibold text-surface-900 group-hover:text-brand-600 transition-colors uppercase tracking-wider">{account.name}</h3>
-                    <p className="text-sm text-surface-500">{account.type}</p>
-                  </div>
+          <div 
+            key={account.id} 
+            className={cn(
+              "group p-8 rounded-[40px] transition-all duration-300 flex flex-col gap-8",
+              account.isActive ? "nm-button hover:nm-button-hover cursor-pointer" : "nm-inset opacity-60"
+            )}
+            onClick={() => account.isActive && setSelectedHistoryAccountId(account.id)}
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-5">
+                <div className={cn(
+                  "p-4 rounded-2xl transition-all duration-300 flex items-center justify-center",
+                  account.isActive ? "nm-inset text-brand-500" : "nm-flat text-surface-400"
+                )}>
+                  {getAccountIcon(account.type)}
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => openEditModal(account.id)} className="text-surface-400 hover:text-brand-600 transition-colors">
-                    <Edit2 size={16} />
-                  </button>
-                  <button onClick={() => openToggleConfirm(account.id, account.isActive)} className="text-surface-400 hover:text-orange-600 transition-colors">
-                    {account.isActive ? <Archive size={16} /> : <ArchiveRestore size={16} />}
-                  </button>
+                <div>
+                  <h3 className="text-xl font-extrabold text-surface-800 tracking-tight group-hover:text-brand-500 transition-colors">
+                    {account.name}
+                  </h3>
+                  <p className="text-[10px] font-extrabold text-surface-400 uppercase tracking-widest mt-0.5">
+                    {account.type.replace('_', ' ')}
+                  </p>
                 </div>
               </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); openEditModal(account.id); }} 
+                  className="p-2.5 rounded-xl nm-button-sm text-surface-400 hover:text-brand-500 transition-colors"
+                >
+                  <Edit2 size={16} />
+                </button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); openToggleConfirm(account.id, account.isActive); }} 
+                  className="p-2.5 rounded-xl nm-button-sm text-surface-400 hover:text-orange-500 transition-colors"
+                >
+                  {account.isActive ? <Archive size={16} /> : <ArchiveRestore size={16} />}
+                </button>
+              </div>
+            </div>
 
-              <div 
-                className="mt-6 cursor-pointer group"
-                onClick={() => setSelectedHistoryAccountId(account.id)}
-              >
-                <div className="flex justify-between items-end mb-1">
-                  <p className="text-sm text-surface-500 uppercase tracking-widest font-semibold p-0">Current Balance</p>
-                  <History size={14} className="text-surface-300 group-hover:text-brand-500 transition-all group-hover:scale-125" />
-                </div>
-                <p className={`text-xl md:text-2xl font-bold transition-all ${account.currentBalance < 0 ? 'text-red-500' : 'text-surface-900'} group-hover:text-brand-600`}>
+            <div className="relative">
+              <div className="flex justify-between items-end mb-2">
+                <span className="text-[10px] font-extrabold text-surface-400 uppercase tracking-widest pl-1">
+                  Balance
+                </span>
+                <History size={16} className="text-surface-300 group-hover:text-brand-500 transition-all group-hover:scale-110" />
+              </div>
+              <div className="nm-inset-deep py-6 px-7 rounded-[24px]">
+                <p className={cn(
+                  "text-3xl font-extrabold tracking-tighter font-plus transition-all",
+                  account.currentBalance < 0 ? 'text-rose-700' : 'text-surface-700'
+                )}>
                   {formatCurrency(account.currentBalance)}
                 </p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
         {accounts.length === 0 && (
-          <div className="col-span-full py-12 text-center text-surface-500 bg-white rounded-xl border border-surface-200 border-dashed">
-            No accounts found. Create one to get started!
+          <div className="col-span-full py-24 text-center nm-inset rounded-[40px] flex flex-col items-center gap-4">
+             <div className="p-8 rounded-full nm-inset text-surface-200">
+               <Wallet size={64} strokeWidth={1} />
+             </div>
+             <div>
+               <p className="text-surface-600 font-extrabold text-xl tracking-tight">No accounts found</p>
+               <p className="text-surface-400 text-sm mt-1">Ready to start tracking? Add your first account above.</p>
+             </div>
           </div>
         )}
       </div>
@@ -274,7 +326,7 @@ export default function AccountsClient() {
                       </p>
                     </div>
                   </div>
-                  <p className={`font-bold ${tx.type === 'INCOME' ? 'text-green-600' : tx.type === 'EXPENSE' ? 'text-red-500' : 'text-blue-600'}`}>
+                  <p className={`font-bold ${tx.type === 'INCOME' ? 'text-emerald-700' : tx.type === 'EXPENSE' ? 'text-rose-700' : 'text-brand-700'}`}>
                     {tx.type === 'INCOME' ? '+' : tx.type === 'EXPENSE' ? '-' : ''}
                     {formatCurrency(tx.amount)}
                   </p>
