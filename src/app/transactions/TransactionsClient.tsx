@@ -6,7 +6,7 @@ import { createTransaction, updateTransaction, deleteTransaction, deleteTransact
 import { getAccounts } from '@/actions/account';
 import { getCategories } from '@/actions/category';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Plus, Edit2, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw } from 'lucide-react';
+import { Plus, Edit2, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw, Search } from 'lucide-react';
 import { Account, Category, Transaction } from '@prisma/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -40,9 +40,18 @@ export default function TransactionsClient() {
   const startDate = startStr && isValid(parseISO(startStr)) ? parseISO(startStr) : undefined;
   const endDate = endStr && isValid(parseISO(endStr)) ? parseISO(endStr) : undefined;
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce search to avoid excessive server requests
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const { data, mutate } = useSWR(
-    mounted ? ['transactions-list', page, type, categoryId, accountId, startStr, endStr] : null, 
-    () => getTransactions(page, 50, { type, categoryId, accountId, startDate, endDate }).then(res => ({
+    mounted ? ['transactions-list', page, type, categoryId, accountId, startStr, endStr, debouncedSearch] : null, 
+    () => getTransactions(page, 50, { type, categoryId, accountId, startDate, endDate, search: debouncedSearch }).then(res => ({
       ...res,
       transactions: res.transactions as PopulatedTransaction[]
     }))
@@ -228,6 +237,26 @@ export default function TransactionsClient() {
           <h2 className="text-xl font-bold text-surface-900">
             {accountId ? `${accounts.find(a => a.id === accountId)?.name}` : 'Transactions'}
           </h2>
+          <div className="flex flex-col sm:flex-row gap-3 mt-4 w-full sm:w-auto">
+            <div className="relative flex-grow sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-surface-400" />
+              <input
+                type="text"
+                placeholder="Search description, account..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-white border border-surface-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-surface-700 placeholder:text-surface-400"
+              />
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 p-1"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
           {(accountId || categoryId || type || startDate || endDate) && (
             <div className="flex flex-wrap gap-2 mt-2">
               {accountId && (

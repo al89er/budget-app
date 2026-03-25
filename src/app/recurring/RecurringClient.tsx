@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { Card, CardContent, Button, Modal, Input, Select } from '@/components/ui';
 import { createRecurringTransaction, updateRecurringTransaction, deleteRecurringTransaction } from '@/actions/recurring';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -13,7 +13,7 @@ import { getRecurringTransactions } from '@/actions/recurring';
 import { getAccounts } from '@/actions/account';
 import { getCategories, createCategory } from '@/actions/category';
 import { useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Search } from 'lucide-react';
 
 type PopulatedRecurring = RecurringTransaction & { 
   categories: {
@@ -34,6 +34,21 @@ export default function RecurringClient() {
   const { data: accounts } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
   const { data: categories } = useSWR(mounted ? 'categories' : null, () => getCategories());
   const { mutate: globalMutate } = useSWRConfig();
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const filteredRecurringTxs = useMemo(() => {
+    if (!recurringTxs) return [];
+    if (!searchTerm.trim()) return recurringTxs;
+    const term = searchTerm.toLowerCase();
+    return recurringTxs.filter(tx => 
+      tx.description.toLowerCase().includes(term) ||
+      tx.sourceAccount?.name.toLowerCase().includes(term) ||
+      tx.destinationAccount?.name.toLowerCase().includes(term) ||
+      tx.categories.some(c => c.category.name.toLowerCase().includes(term))
+    );
+  }, [recurringTxs, searchTerm]);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isQuickCategoryModalOpen, setIsQuickCategoryModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -155,7 +170,27 @@ export default function RecurringClient() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h2 className="text-lg font-medium text-surface-700">Automations</h2>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+          <h2 className="text-lg font-medium text-surface-700">Automations</h2>
+          <div className="relative flex-grow sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-surface-400" />
+            <input
+              type="text"
+              placeholder="Search automation..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-1.5 bg-white border border-surface-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all font-medium text-surface-700 placeholder:text-surface-400"
+            />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400 hover:text-surface-600 p-1"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+        </div>
         <Button onClick={openCreateModal} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Add
@@ -176,7 +211,7 @@ export default function RecurringClient() {
               </tr>
             </thead>
             <tbody>
-              {recurringTxs.map((tx) => (
+              {filteredRecurringTxs.map((tx) => (
                 <tr key={tx.id} className="bg-white border-b border-surface-100 hover:bg-surface-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">

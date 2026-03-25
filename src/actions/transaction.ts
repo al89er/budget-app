@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma';
 import { TransactionSchema } from '@/lib/schemas';
 import { revalidatePath } from 'next/cache';
 
-export async function getTransactions(page = 1, limit = 50, filters?: { type?: string; categoryId?: string; accountId?: string; startDate?: Date; endDate?: Date }) {
+export async function getTransactions(page = 1, limit = 50, filters?: { type?: string; categoryId?: string; accountId?: string; startDate?: Date; endDate?: Date; search?: string }) {
   const skip = (page - 1) * limit;
 
   const where: any = {};
@@ -27,6 +27,18 @@ export async function getTransactions(page = 1, limit = 50, filters?: { type?: s
     where.date = {};
     if (filters.startDate) where.date.gte = filters.startDate;
     if (filters.endDate) where.date.lte = filters.endDate;
+  }
+
+  if (filters?.search) {
+    const searchFilter = { contains: filters.search, mode: 'insensitive' };
+    where.OR = [
+      ...(where.OR || []),
+      { description: searchFilter },
+      { notes: searchFilter },
+      { categories: { some: { category: { name: searchFilter } } } },
+      { sourceAccount: { name: searchFilter } },
+      { destinationAccount: { name: searchFilter } },
+    ];
   }
 
   const [transactions, total] = await Promise.all([
