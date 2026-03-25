@@ -8,15 +8,31 @@ export async function getRecurringTransactions() {
   return prisma.recurringTransaction.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
-      category: true,
+      categories: {
+        include: {
+          category: true
+        }
+      },
       sourceAccount: true,
       destinationAccount: true,
     },
   });
 }
 
+// Helper to extract multiple values from FormData
+function getFormDataArray(formData: FormData, key: string): string[] {
+  const values: string[] = [];
+  formData.forEach((value, k) => {
+    if (k === key && typeof value === 'string' && value) {
+      values.push(value);
+    }
+  });
+  return values;
+}
+
 export async function createRecurringTransaction(formData: FormData) {
   const data = Object.fromEntries(formData.entries());
+  const categoryIds = getFormDataArray(formData, 'categoryIds');
   
   try {
     const amount = parseFloat(data.amount as string);
@@ -27,7 +43,11 @@ export async function createRecurringTransaction(formData: FormData) {
         description: data.description as string,
         amount,
         type: data.type as string,
-        categoryId: data.categoryId as string || null,
+        categories: {
+          create: categoryIds.map(id => ({
+            category: { connect: { id } }
+          }))
+        },
         sourceAccountId: data.sourceAccountId as string || null,
         destinationAccountId: data.destinationAccountId as string || null,
         frequency: data.frequency as string,
@@ -52,6 +72,7 @@ export async function createRecurringTransaction(formData: FormData) {
 
 export async function updateRecurringTransaction(id: string, formData: FormData) {
   const data = Object.fromEntries(formData.entries());
+  const categoryIds = getFormDataArray(formData, 'categoryIds');
   
   try {
     const amount = parseFloat(data.amount as string);
@@ -62,7 +83,12 @@ export async function updateRecurringTransaction(id: string, formData: FormData)
         description: data.description as string,
         amount,
         type: data.type as string,
-        categoryId: data.categoryId as string || null,
+        categories: {
+          deleteMany: {},
+          create: categoryIds.map(id => ({
+            category: { connect: { id } }
+          }))
+        },
         sourceAccountId: data.sourceAccountId as string || null,
         destinationAccountId: data.destinationAccountId as string || null,
         frequency: data.frequency as string,
@@ -74,8 +100,12 @@ export async function updateRecurringTransaction(id: string, formData: FormData)
       },
     });
 
-    await processDueRecurringTransactions();
+    // Trigger retroactive update in the background (non-blocking)
+    syncTransactionsWithRecurring(id, categoryIds).catch(err => {
+      console.error('Background sync failed:', err);
+    });
 
+    await processDueRecurringTransactions();
     revalidatePath('/recurring');
     revalidatePath('/transactions');
     revalidatePath('/');
@@ -112,6 +142,9 @@ export async function processDueRecurringTransactions() {
   try {
     const activeRecurring = await prisma.recurringTransaction.findMany({
       where: { isActive: true },
+      include: {
+        categories: true
+      }
     });
 
     const now = startOfDay(new Date());
@@ -138,7 +171,12 @@ export async function processDueRecurringTransactions() {
             description: r.description + ` (Auto: ${r.frequency})`,
             amount: r.amount,
             type: r.type,
-            categoryId: r.categoryId,
+            recurringTransactionId: r.id, // Link to the recurring template
+            categories: {
+              create: r.categories.map(c => ({
+                category: { connect: { id: c.categoryId } }
+              }))
+            },
             sourceAccountId: r.sourceAccountId,
             destinationAccountId: r.destinationAccountId,
             notes: r.notes,
@@ -178,5 +216,47 @@ export async function processDueRecurringTransactions() {
   } catch (error) {
     console.error('Failed to process recurring transactions:', error);
     return { error: 'Failed to process recurring transactions' };
+  }
+}
+
+/**
+ * Background helper to sync transactions with their recurring parent
+ * Optimized to run without blocking the main UI response
+ */
+async function syncTransactionsWithRecurring(recurringId: string, categoryIds: string[]) {
+  const recurring = await prisma.recurringTransaction.findUnique({
+    where: { id: recurringId },
+    select: { description: true, frequency: true }
+  });
+
+  if (!recurring) return;
+
+  const autoDescription = `${recurring.description} (Auto: ${recurring.frequency})`;
+  
+  // Find all related transactions (linked or matching pattern)
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      OR: [
+        { recurringTransactionId: recurringId },
+        { description: autoDescription }
+      ]
+    },
+    select: { id: true }
+  });
+
+  // Perform updates in series to avoid DB locks, but without blocking the user
+  for (const tx of transactions) {
+    await prisma.transaction.update({
+      where: { id: tx.id },
+      data: {
+        recurringTransactionId: recurringId,
+        categories: {
+          deleteMany: {},
+          create: categoryIds.map(catId => ({
+            category: { connect: { id: catId } }
+          }))
+        }
+      }
+    });
   }
 }

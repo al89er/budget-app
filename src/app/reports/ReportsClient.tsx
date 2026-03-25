@@ -11,7 +11,7 @@ import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import useSWR from 'swr';
-import { getMonthlySummary, getRecentTrends, getBudgetVsActual } from '@/actions/summary';
+import { getMonthlySummary, getRecentTrends, getBudgetVsActual, getCategoryReportData } from '@/actions/summary';
 import { getAccounts } from '@/actions/account';
 import { getCategories } from '@/actions/category';
 
@@ -27,6 +27,24 @@ export default function ReportsClient() {
   const { data: budgetVsActual } = useSWR(mounted ? ['budgetVsActual', currentMonth] : null, () => getBudgetVsActual(currentMonth));
   const { data: accounts } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
   const { data: categories } = useSWR(mounted ? 'categories' : null, () => getCategories());
+  
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [spotlightMonth, setSpotlightMonth] = useState(currentMonth);
+
+  const { data: categoryReport } = useSWR(
+    mounted && selectedCategoryId ? ['category-report', selectedCategoryId, spotlightMonth] : null, 
+    () => getCategoryReportData(selectedCategoryId!, spotlightMonth)
+  );
+
+  useEffect(() => {
+    setSpotlightMonth(currentMonth);
+  }, [currentMonth]);
+
+  useEffect(() => {
+    if (categories && categories.length > 0 && !selectedCategoryId) {
+      setSelectedCategoryId(categories[0].id);
+    }
+  }, [categories, selectedCategoryId]);
 
   if (!mounted || !summary || !trends || !budgetVsActual || !accounts || !categories) {
     return (
@@ -196,6 +214,111 @@ export default function ReportsClient() {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Category Monthly Report Section */}
+      <div className="space-y-4 pt-6 mt-6 border-t border-surface-200">
+        <h3 className="text-xl font-semibold text-surface-800">Category Monthly Spotlight</h3>
+        
+        {/* Category Selector Bar */}
+        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+          {categories.filter(c => c.isActive).map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategoryId(cat.id)}
+              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                selectedCategoryId === cat.id 
+                  ? 'bg-brand-600 text-white shadow-md' 
+                  : 'bg-white text-surface-600 border border-surface-200 hover:border-brand-300 hover:bg-brand-50'
+              }`}
+            >
+              {cat.icon && <span className="mr-2">{cat.icon}</span>}
+              {cat.name}
+            </button>
+          ))}
+        </div>
+
+        {selectedCategoryId && categoryReport ? (
+          <Card className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <CardHeader className="pb-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex flex-col gap-1">
+                  <CardTitle className="text-lg">
+                    History: {categories.find(c => c.id === selectedCategoryId)?.name}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-surface-500 uppercase tracking-wider font-semibold">View Month:</span>
+                    <input 
+                      type="month" 
+                      value={spotlightMonth}
+                      onChange={(e) => setSpotlightMonth(e.target.value)}
+                      className="text-xs border-surface-200 rounded px-2 py-1 focus:ring-brand-500"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="text-center">
+                    <p className="text-[10px] uppercase tracking-wider text-surface-400 font-bold">Total In</p>
+                    <p className="text-lg font-bold text-green-600">{formatCurrency(categoryReport.totalIn)}</p>
+                  </div>
+                  <div className="text-center border-l border-surface-100 pl-4">
+                    <p className="text-[10px] uppercase tracking-wider text-surface-400 font-bold">Total Out</p>
+                    <p className="text-lg font-bold text-red-600">{formatCurrency(categoryReport.totalOut)}</p>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-surface-500 uppercase bg-surface-50 border-b border-surface-200">
+                    <tr>
+                      <th className="px-4 py-3">Date</th>
+                      <th className="px-4 py-3">Description</th>
+                      <th className="px-4 py-3">Account</th>
+                      <th className="px-4 py-3 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categoryReport.transactions.length > 0 ? (
+                      categoryReport.transactions.map((tx: any) => (
+                        <tr key={tx.id} className="border-b border-surface-100 hover:bg-surface-50 transition-colors">
+                          <td className="px-4 py-4 text-surface-500 whitespace-nowrap">
+                            {format(new Date(tx.date), 'MMM dd')}
+                          </td>
+                          <td className="px-4 py-4 font-medium text-surface-900">
+                            {tx.description}
+                          </td>
+                          <td className="px-4 py-4 text-surface-600 lowercase text-xs">
+                             {tx.type === 'INCOME' ? tx.destinationAccount?.name : tx.sourceAccount?.name}
+                             {tx.type === 'TRANSFER' && ` -> ${tx.destinationAccount?.name}`}
+                          </td>
+                          <td className={`px-4 py-4 text-right font-semibold ${
+                            tx.type === 'INCOME' ? 'text-green-600' : 
+                            tx.type === 'EXPENSE' ? 'text-red-600' : 'text-blue-600'
+                          }`}>
+                            {tx.type === 'INCOME' ? '+' : tx.type === 'EXPENSE' ? '-' : ''}
+                            {formatCurrency(tx.amount)}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-12 text-center text-surface-400 italic">
+                          No transactions found for this category in {spotlightMonth}.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="h-48 flex items-center justify-center bg-surface-50 border border-dashed border-surface-300 rounded-xl text-surface-500">
+             {selectedCategoryId ? 'Loading category data...' : 'Please select a category above'}
+          </div>
+        )}
+      </div>
 
     </div>
   );

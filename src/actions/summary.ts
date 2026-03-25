@@ -35,7 +35,11 @@ export async function getSummaryData(timeframe: string = 'this_month') {
       },
     },
     include: {
-      category: true,
+      categories: {
+        include: {
+          category: true
+        }
+      },
     },
   });
 
@@ -50,16 +54,17 @@ export async function getSummaryData(timeframe: string = 'this_month') {
       totalExpense += tx.amount;
       
       // Calculate category spending
-      if (tx.category) {
-        if (!expensesByCategory[tx.category.id]) {
-          expensesByCategory[tx.category.id] = {
-            name: tx.category.name,
+      tx.categories.forEach((catLink) => {
+        const category = catLink.category;
+        if (!expensesByCategory[category.id]) {
+          expensesByCategory[category.id] = {
+            name: category.name,
             amount: 0,
-            color: tx.category.color || undefined,
+            color: category.color || undefined,
           };
         }
-        expensesByCategory[tx.category.id].amount += tx.amount;
-      }
+        expensesByCategory[category.id].amount += tx.amount;
+      });
     }
   });
 
@@ -100,7 +105,11 @@ export async function getMonthlySummary(monthString: string) {
       },
     },
     include: {
-      category: true,
+      categories: {
+        include: {
+          category: true
+        }
+      },
     },
   });
 
@@ -115,16 +124,17 @@ export async function getMonthlySummary(monthString: string) {
       totalExpense += tx.amount;
       
       // Calculate category spending
-      if (tx.category) {
-        if (!expensesByCategory[tx.category.id]) {
-          expensesByCategory[tx.category.id] = {
-            name: tx.category.name,
+      tx.categories.forEach((catLink) => {
+        const category = catLink.category;
+        if (!expensesByCategory[category.id]) {
+          expensesByCategory[category.id] = {
+            name: category.name,
             amount: 0,
-            color: tx.category.color || undefined,
+            color: category.color || undefined,
           };
         }
-        expensesByCategory[tx.category.id].amount += tx.amount;
-      }
+        expensesByCategory[category.id].amount += tx.amount;
+      });
     }
   });
 
@@ -180,13 +190,16 @@ export async function getBudgetVsActual(monthString: string) {
         date: { gte: start, lte: end },
         type: 'EXPENSE',
       },
+      include: {
+        categories: true
+      }
     }),
   ]);
 
   const spentByCategory = expenses.reduce((acc, tx) => {
-    if (tx.categoryId) {
-      acc[tx.categoryId] = (acc[tx.categoryId] || 0) + tx.amount;
-    }
+    tx.categories.forEach(catLink => {
+      acc[catLink.categoryId] = (acc[catLink.categoryId] || 0) + tx.amount;
+    });
     return acc;
   }, {} as Record<string, number>);
 
@@ -251,4 +264,55 @@ export async function getRecentTrends(monthsCount = 6) {
   }
 
   return Promise.all(trendsPromises);
+}
+
+export async function getCategoryReportData(categoryId: string, monthString: string) {
+  const date = parse(monthString, 'yyyy-MM', new Date());
+  const start = startOfMonth(date);
+  const end = endOfMonth(date);
+
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      date: {
+        gte: start,
+        lte: end,
+      },
+      categories: {
+        some: {
+          categoryId: categoryId
+        }
+      }
+    },
+    include: {
+      categories: {
+        include: {
+          category: true
+        }
+      },
+      sourceAccount: true,
+      destinationAccount: true
+    },
+    orderBy: {
+      date: 'desc'
+    }
+  });
+
+  let totalIn = 0;
+  let totalOut = 0;
+
+  transactions.forEach(tx => {
+    if (tx.type === 'INCOME') {
+      totalIn += tx.amount;
+    } else if (tx.type === 'EXPENSE') {
+      totalOut += tx.amount;
+    }
+    // For Transfers, we might want to show them but not count for income/expense?
+    // User requested "Total Income/Expense" logic usually.
+  });
+
+  return {
+    transactions,
+    totalIn,
+    totalOut
+  };
 }

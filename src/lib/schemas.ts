@@ -26,7 +26,7 @@ export const TransactionSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   amount: z.coerce.number().positive('Amount must be positive'),
   type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER']),
-  categoryId: z.string().uuid().optional().nullable(),
+  categoryIds: z.array(z.string().uuid()).optional().default([]),
   sourceAccountId: z.string().uuid().optional().nullable(),
   destinationAccountId: z.string().uuid().optional().nullable(),
   notes: z.string().optional().nullable(),

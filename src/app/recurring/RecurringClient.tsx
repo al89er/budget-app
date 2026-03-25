@@ -13,9 +13,12 @@ import { getRecurringTransactions } from '@/actions/recurring';
 import { getAccounts } from '@/actions/account';
 import { getCategories, createCategory } from '@/actions/category';
 import { useEffect } from 'react';
+import { X } from 'lucide-react';
 
 type PopulatedRecurring = RecurringTransaction & { 
-  category: Category | null;
+  categories: {
+    category: Category;
+  }[];
   sourceAccount: Account | null;
   destinationAccount: Account | null;
 };
@@ -45,6 +48,7 @@ export default function RecurringClient() {
 
   const editingTx = editingId ? (recurringTxs?.find(t => t.id === editingId)) : null;
   const [txType, setTxType] = useState<string>('EXPENSE');
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
 
   if (!mounted || !recurringTxs || !accounts || !categories) {
     return (
@@ -57,6 +61,7 @@ export default function RecurringClient() {
   function openCreateModal() {
     setEditingId(null);
     setTxType('EXPENSE');
+    setSelectedCategoryIds([]);
     setError(null);
     setIsModalOpen(true);
   }
@@ -64,6 +69,7 @@ export default function RecurringClient() {
   function openEditModal(tx: PopulatedRecurring) {
     setEditingId(tx.id);
     setTxType(tx.type);
+    setSelectedCategoryIds(tx.categories.map(c => c.category.id));
     setError(null);
     setIsModalOpen(true);
   }
@@ -73,6 +79,9 @@ export default function RecurringClient() {
     setError(null);
     
     const formData = new FormData(e.currentTarget);
+    // Append all selected category IDs
+    formData.delete('categoryIds');
+    selectedCategoryIds.forEach(id => formData.append('categoryIds', id));
     
     startTransition(async () => {
       const res = editingId 
@@ -120,11 +129,11 @@ export default function RecurringClient() {
         toast.error(res.error);
       } else {
         toast.success("Category created successfully");
-        const allCategories = await globalMutate('categories');
+        const refreshedCategories = await globalMutate('categories');
         const name = formData.get('name') as string;
-        const created = (allCategories as any[])?.find((c: any) => c.name === name);
+        const created = (refreshedCategories as any[])?.find((c: any) => c.name === name);
         if (created) {
-          setNewCategoryId(created.id);
+          setSelectedCategoryIds(prev => Array.from(new Set([...prev, created.id])));
         }
         setIsQuickCategoryModalOpen(false);
       }
@@ -174,9 +183,17 @@ export default function RecurringClient() {
                       {renderTxIcon(tx.type)}
                       <div>
                         <span className="font-medium text-surface-900 block line-clamp-1">{tx.description}</span>
-                        <div className="flex flex-wrap items-center gap-x-2 text-[10px] text-surface-400">
-                          <span>{tx.category?.name || 'Uncategorized'}</span>
-                          <span className="md:hidden">&bull; {tx.frequency.toLowerCase()}</span>
+                        <div className="flex flex-wrap items-center gap-1 mt-1 text-[10px] text-surface-400">
+                          {tx.categories?.map(catLink => (
+                            <span 
+                              key={catLink.category.id}
+                              className="px-1.5 py-0.5 rounded bg-surface-100 text-surface-600 border border-surface-200"
+                            >
+                              {catLink.category.name}
+                            </span>
+                          ))}
+                          {(!tx.categories || tx.categories.length === 0) && <span>Uncategorized</span>}
+                          <span className="md:hidden ml-1">&bull; {tx.frequency.toLowerCase()}</span>
                         </div>
                       </div>
                     </div>
@@ -321,28 +338,63 @@ export default function RecurringClient() {
             />
           </div>
 
-          <div className="flex items-end gap-2">
-            <div className="flex-1">
-              <Select 
-                name="categoryId" 
-                label="Category" 
-                defaultValue={newCategoryId || editingTx?.categoryId || ''}
-                key={newCategoryId || 'cat-select'}
-                options={categoryOptions}
-                required={txType !== 'TRANSFER'}
-              />
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-surface-700">Categories</label>
+            <div className="flex flex-wrap gap-2 p-2 min-h-[42px] bg-white border border-surface-200 rounded-lg">
+              {selectedCategoryIds.map(id => {
+                const cat = categories.find(c => c.id === id);
+                if (!cat) return null;
+                return (
+                  <span 
+                    key={id} 
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded bg-brand-50 text-brand-700 text-xs font-medium border border-brand-100 animate-in zoom-in-95 duration-200"
+                  >
+                    {cat.name}
+                    <button 
+                      type="button" 
+                      onClick={() => setSelectedCategoryIds(prev => prev.filter(p => p !== id))}
+                      className="hover:text-brand-900"
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                );
+              })}
+              {selectedCategoryIds.length === 0 && (
+                <span className="text-surface-400 text-xs py-1 italic">No categories selected</span>
+              )}
             </div>
-            <button 
-              type="button"
-              onClick={() => {
-                setRandomCategoryColor(DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)]);
-                setIsQuickCategoryModalOpen(true);
-              }}
-              className="mb-2 p-2 text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
-              title="Quick Add Category"
-            >
-              <PlusCircle size={20} />
-            </button>
+            
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <Select 
+                  label="" 
+                  value=""
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    if (id && !selectedCategoryIds.includes(id)) {
+                      setSelectedCategoryIds(prev => [...prev, id]);
+                    }
+                  }}
+                  options={[
+                    { value: '', label: 'Add a category...' },
+                    ...categoryOptions.filter(opt => !selectedCategoryIds.includes(opt.value))
+                  ]}
+                  required={txType !== 'TRANSFER' && selectedCategoryIds.length === 0}
+                />
+              </div>
+              <button 
+                type="button"
+                onClick={() => {
+                  setRandomCategoryColor(DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)]);
+                  setIsQuickCategoryModalOpen(true);
+                }}
+                className="p-2 text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+                title="Quick Add Category"
+              >
+                <PlusCircle size={20} />
+              </button>
+            </div>
           </div>
 
           {(txType === 'EXPENSE' || txType === 'TRANSFER') && (

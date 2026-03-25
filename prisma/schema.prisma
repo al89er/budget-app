@@ -37,9 +37,29 @@ model Category {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  transactions Transaction[]
+  transactions CategoryToTransaction[] @relation("CatToTx_Category")
+  recurringTxs CategoryToRecurringTransaction[] @relation("CatToRec_Category")
+  oldTransactions Transaction[] @relation("OldCatToTx")
+  oldRecurringTxs RecurringTransaction[] @relation("OldCatToRec")
   budgets      Budget[]
-  recurringTxs RecurringTransaction[] @relation("RecurringCategory")
+}
+
+model CategoryToTransaction {
+  transaction   Transaction @relation("CatToTx_Transaction", fields: [transactionId], references: [id], onDelete: Cascade)
+  transactionId String
+  category      Category    @relation("CatToTx_Category", fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId    String
+
+  @@id([transactionId, categoryId])
+}
+
+model CategoryToRecurringTransaction {
+  recurringTransaction   RecurringTransaction @relation("CatToRec_Recurring", fields: [recurringTransactionId], references: [id], onDelete: Cascade)
+  recurringTransactionId String
+  category               Category             @relation("CatToRec_Category", fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId             String
+
+  @@id([recurringTransactionId, categoryId])
 }
 
 model Transaction {
@@ -48,8 +68,9 @@ model Transaction {
   description          String
   amount               Float    // Always stored as positive
   type                 String   // INCOME, EXPENSE, TRANSFER
+  categories           CategoryToTransaction[] @relation("CatToTx_Transaction")
   categoryId           String?
-  category             Category? @relation(fields: [categoryId], references: [id])
+  category             Category? @relation("OldCatToTx", fields: [categoryId], references: [id])
   sourceAccountId      String?
   sourceAccount        Account?  @relation("SourceAccount", fields: [sourceAccountId], references: [id])
   destinationAccountId String?
@@ -58,11 +79,13 @@ model Transaction {
   isRetrospective      Boolean  @default(false)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  
+  recurringTransaction   RecurringTransaction? @relation("RecToTx", fields: [recurringTransactionId], references: [id], onDelete: Cascade)
+  recurringTransactionId String?
 
   @@index([date])
   @@index([sourceAccountId])
   @@index([destinationAccountId])
-  @@index([categoryId])
 }
 
 model Budget {
@@ -88,8 +111,9 @@ model RecurringTransaction {
   description          String
   amount               Float
   type                 String   // INCOME, EXPENSE, TRANSFER
+  categories           CategoryToRecurringTransaction[] @relation("CatToRec_Recurring")
   categoryId           String?
-  category             Category? @relation("RecurringCategory", fields: [categoryId], references: [id])
+  category             Category? @relation("OldCatToRec", fields: [categoryId], references: [id])
   sourceAccountId      String?
   sourceAccount        Account?  @relation("RecurringSourceAccount", fields: [sourceAccountId], references: [id])
   destinationAccountId String?
@@ -104,5 +128,6 @@ model RecurringTransaction {
   notes                String?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  transactions         Transaction[] @relation("RecToTx")
 }
 

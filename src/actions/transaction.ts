@@ -9,7 +9,13 @@ export async function getTransactions(page = 1, limit = 50, filters?: { type?: s
 
   const where: any = {};
   if (filters?.type) where.type = filters.type;
-  if (filters?.categoryId) where.categoryId = filters.categoryId;
+  if (filters?.categoryId) {
+    where.categories = {
+      some: {
+        categoryId: filters.categoryId
+      }
+    };
+  }
   if (filters?.accountId) {
     where.OR = [
       { sourceAccountId: filters.accountId },
@@ -30,7 +36,11 @@ export async function getTransactions(page = 1, limit = 50, filters?: { type?: s
       skip,
       take: limit,
       include: {
-        category: true,
+        categories: {
+          include: {
+            category: true
+          }
+        },
         sourceAccount: true,
         destinationAccount: true,
       },
@@ -45,18 +55,35 @@ export async function getTransactionById(id: string) {
   return prisma.transaction.findUnique({
     where: { id },
     include: {
-      category: true,
+      categories: {
+        include: {
+          category: true
+        }
+      },
       sourceAccount: true,
       destinationAccount: true,
     },
   });
 }
 
+// Helper to extract multiple values from FormData
+function getFormDataArray(formData: FormData, key: string): string[] {
+  const values: string[] = [];
+  formData.forEach((value, k) => {
+    if (k === key && typeof value === 'string' && value) {
+      values.push(value);
+    }
+  });
+  return values;
+}
+
 export async function createTransaction(formData: FormData) {
   const data = Object.fromEntries(formData.entries());
+  const categoryIds = getFormDataArray(formData, 'categoryIds');
   
   const result = TransactionSchema.safeParse({
     ...data,
+    categoryIds,
     isRetrospective: data.isRetrospective === 'on' || data.isRetrospective === 'true',
   });
 
@@ -73,7 +100,11 @@ export async function createTransaction(formData: FormData) {
         description: result.data.description,
         amount: result.data.amount,
         type: result.data.type,
-        categoryId: result.data.categoryId || null,
+        categories: {
+          create: result.data.categoryIds.map(id => ({
+            category: { connect: { id } }
+          }))
+        },
         sourceAccountId: result.data.sourceAccountId || null,
         destinationAccountId: result.data.destinationAccountId || null,
         notes: result.data.notes,
@@ -92,9 +123,11 @@ export async function createTransaction(formData: FormData) {
 
 export async function updateTransaction(id: string, formData: FormData) {
   const data = Object.fromEntries(formData.entries());
+  const categoryIds = getFormDataArray(formData, 'categoryIds');
   
   const result = TransactionSchema.safeParse({
     ...data,
+    categoryIds,
     isRetrospective: data.isRetrospective === 'on' || data.isRetrospective === 'true',
   });
 
@@ -111,7 +144,12 @@ export async function updateTransaction(id: string, formData: FormData) {
         description: result.data.description,
         amount: result.data.amount,
         type: result.data.type,
-        categoryId: result.data.categoryId || null,
+        categories: {
+          deleteMany: {},
+          create: result.data.categoryIds.map(id => ({
+            category: { connect: { id } }
+          }))
+        },
         sourceAccountId: result.data.sourceAccountId || null,
         destinationAccountId: result.data.destinationAccountId || null,
         notes: result.data.notes,
