@@ -8,7 +8,7 @@ import { Plus, Edit2, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw, Repeat, P
 import { Account, Category, RecurringTransaction } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import useSWR, { mutate as globalMutate } from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 import { getRecurringTransactions } from '@/actions/recurring';
 import { getAccounts } from '@/actions/account';
 import { getCategories, createCategory } from '@/actions/category';
@@ -30,6 +30,7 @@ export default function RecurringClient() {
   );
   const { data: accounts } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
   const { data: categories } = useSWR(mounted ? 'categories' : null, () => getCategories());
+  const { mutate: globalMutate } = useSWRConfig();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isQuickCategoryModalOpen, setIsQuickCategoryModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);

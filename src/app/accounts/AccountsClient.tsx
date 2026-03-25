@@ -8,7 +8,7 @@ import { Wallet, Plus, Edit2, Archive, ArchiveRestore, RefreshCw, History, Arrow
 import { Account } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import useSWR, { mutate } from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 import { getAccounts } from '@/actions/account';
 import { getTransactions } from '@/actions/transaction';
 import { useEffect } from 'react';
@@ -33,6 +33,7 @@ export default function AccountsClient() {
 
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { mutate } = useSWRConfig();
   const router = useRouter();
 
   if (!mounted || !accounts) {
@@ -71,7 +72,10 @@ export default function AccountsClient() {
         setError(res.error);
         toast.error(res.error);
       } else {
-        mutate('accounts');
+        await Promise.all([
+          mutate('accounts'),
+          mutate(['summary', 'this_month']),
+        ]);
         setIsModalOpen(false);
         toast.success(editingId ? "Account updated successfully" : "Account created successfully");
       }

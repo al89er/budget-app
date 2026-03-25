@@ -18,20 +18,23 @@ export default function DashboardClient() {
   const searchParams = useSearchParams();
   const timeframe = searchParams.get('timeframe') || 'this_month';
   
-  const { data: summary } = useSWR(mounted ? ['summary', timeframe] : null, () => getSummaryData(timeframe));
-  const { data: accounts } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
+  const { data: summary, isValidating: isValidatingSummary } = useSWR(mounted ? ['summary', timeframe] : null, () => getSummaryData(timeframe));
+  const { data: accounts, isValidating: isValidatingAccounts } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
   const { data: recentTransactions } = useSWR(mounted ? 'recentTx' : null, () => getTransactions(1, 10).then(res => res.transactions));
   const { data: budgetVsActual } = useSWR(mounted ? ['budgetVsActual', timeframe] : null, () => {
     const d = new Date();
     return getBudgetVsActual(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   });
+  
+  const isSyncing = isValidatingSummary || isValidatingAccounts;
 
   useEffect(() => {
     setMounted(true);
     processDueRecurringTransactions();
   }, []);
 
-  if (!mounted || !summary || !accounts || !recentTransactions || !budgetVsActual) {
+  // Only show full-screen loader if we have NO data at all (not even from cache)
+  if (!mounted || (!summary && !accounts)) {
     return (
       <div className="h-64 flex flex-col items-center justify-center text-surface-500 animate-pulse">
         <RefreshCw className="h-8 w-8 animate-spin mb-4 text-brand-500" />
@@ -49,12 +52,20 @@ export default function DashboardClient() {
   }
 
   // Calculate Net Worth
-  const netWorth = accounts.reduce((acc, account) => acc + account.currentBalance, 0);
+  const netWorth = accounts?.reduce((acc, account) => acc + account.currentBalance, 0) || 0;
 
   return (
     <div className="space-y-6">
-      {/* Timeframe Filter */}
-      <div className="flex justify-end mb-4">
+      {/* Timeframe Filter & Status */}
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-2">
+          {isSyncing && (
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded-full animate-pulse border border-brand-100">
+              <RefreshCw size={10} className="animate-spin" />
+              UPDATING
+            </div>
+          )}
+        </div>
         <div className="w-48">
           <Select
             name="timeframe"
@@ -87,7 +98,7 @@ export default function DashboardClient() {
             <p className="text-surface-500 text-sm font-medium mb-1 flex items-center gap-2">
               <ArrowUpRight size={16} className="text-green-500" /> Income
             </p>
-            <p className="text-xl md:text-2xl font-bold text-green-600">{formatCurrency(summary.totalIncome)}</p>
+            <p className="text-xl md:text-2xl font-bold text-green-600">{formatCurrency(summary?.totalIncome || 0)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -95,7 +106,7 @@ export default function DashboardClient() {
             <p className="text-surface-500 text-sm font-medium mb-1 flex items-center gap-2">
               <ArrowDownRight size={16} className="text-red-500" /> Expenses
             </p>
-            <p className="text-xl md:text-2xl font-bold text-red-600">{formatCurrency(summary.totalExpense)}</p>
+            <p className="text-xl md:text-2xl font-bold text-red-600">{formatCurrency(summary?.totalExpense || 0)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -103,14 +114,14 @@ export default function DashboardClient() {
             <p className="text-surface-500 text-sm font-medium mb-1 flex items-center gap-2 text-orange-600">
               <Wallet size={16} /> CC Debt
             </p>
-            <p className="text-xl md:text-2xl font-bold text-orange-600">{formatCurrency(summary.totalCreditCardDebt)}</p>
+            <p className="text-xl md:text-2xl font-bold text-orange-600">{formatCurrency(summary?.totalCreditCardDebt || 0)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 md:p-6">
             <p className="text-surface-500 text-sm font-medium mb-1">Net Cashflow</p>
-            <p className={`text-xl md:text-2xl font-bold ${summary.netCashflow >= 0 ? 'text-brand-600' : 'text-red-600'}`}>
-              {summary.netCashflow > 0 ? '+' : ''}{formatCurrency(summary.netCashflow)}
+            <p className={`text-xl md:text-2xl font-bold ${(summary?.netCashflow || 0) >= 0 ? 'text-brand-600' : 'text-red-600'}`}>
+              {(summary?.netCashflow || 0) > 0 ? '+' : ''}{formatCurrency(summary?.netCashflow || 0)}
             </p>
           </CardContent>
         </Card>
@@ -126,7 +137,7 @@ export default function DashboardClient() {
               <CardTitle>Spending by Category</CardTitle>
             </CardHeader>
             <CardContent className="p-6 pt-0">
-              {summary.spendingByCategoryData.length > 0 ? (
+              {summary?.spendingByCategoryData && summary.spendingByCategoryData.length > 0 ? (
                 <div className="h-72 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -153,9 +164,13 @@ export default function DashboardClient() {
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-              ) : (
+              ) : summary?.spendingByCategoryData ? (
                 <div className="h-64 flex items-center justify-center text-surface-400 text-sm">
                   No expense data for this month.
+                </div>
+              ) : (
+                <div className="h-64 flex items-center justify-center text-surface-400 text-sm animate-pulse">
+                  Loading chart...
                 </div>
               )}
             </CardContent>
@@ -167,7 +182,7 @@ export default function DashboardClient() {
               <CardTitle>Budget vs Actual</CardTitle>
             </CardHeader>
             <CardContent className="p-6 pt-0">
-              {budgetVsActual.length > 0 ? (
+              {budgetVsActual && budgetVsActual.length > 0 ? (
                 <div className="h-72 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={budgetVsActual} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -181,9 +196,13 @@ export default function DashboardClient() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-              ) : (
+              ) : budgetVsActual ? (
                 <div className="h-48 flex items-center justify-center text-surface-400 text-sm">
-                  No budgets set for this month.
+                   No budgets set for this month.
+                </div>
+              ) : (
+                <div className="h-48 flex items-center justify-center text-surface-400 text-sm animate-pulse">
+                  Loading budget comparison...
                 </div>
               )}
             </CardContent>
@@ -201,7 +220,7 @@ export default function DashboardClient() {
             </CardHeader>
             <CardContent className="p-0">
               <ul className="divide-y divide-surface-100">
-                {accounts.filter(a => a.isActive).map((account) => (
+                {accounts?.filter(a => a.isActive).map((account) => (
                   <li key={account.id} className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="text-surface-400">
@@ -214,6 +233,11 @@ export default function DashboardClient() {
                     </span>
                   </li>
                 ))}
+                {!accounts && (
+                  <li className="p-8 text-center text-sm text-surface-400 animate-pulse">
+                    Loading accounts...
+                  </li>
+                )}
               </ul>
             </CardContent>
           </Card>
@@ -225,7 +249,7 @@ export default function DashboardClient() {
             </CardHeader>
             <CardContent className="p-0">
               <ul className="divide-y divide-surface-100">
-                {recentTransactions.map((tx) => (
+                {recentTransactions?.map((tx) => (
                   <li key={tx.id} className="p-4 flex items-start justify-between">
                     <div className="flex gap-3">
                       <div className="mt-1">
@@ -245,9 +269,14 @@ export default function DashboardClient() {
                     </div>
                   </li>
                 ))}
-                {recentTransactions.length === 0 && (
+                {recentTransactions?.length === 0 && (
                   <li className="p-6 text-center text-sm text-surface-500">
                     No recent transactions.
+                  </li>
+                )}
+                {!recentTransactions && (
+                   <li className="p-8 text-center text-sm text-surface-400 animate-pulse">
+                    Loading transactions...
                   </li>
                 )}
               </ul>

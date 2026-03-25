@@ -7,7 +7,7 @@ import { PieChart, Plus, Edit2, Trash2, RefreshCw, Palette } from 'lucide-react'
 import { Category } from '@prisma/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import useSWR, { mutate } from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 import { getCategories } from '@/actions/category';
 import { useEffect } from 'react';
 
@@ -23,6 +23,7 @@ export default function CategoriesClient() {
   const [randomDefaultColor, setRandomDefaultColor] = useState('#3b82f6');
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { mutate } = useSWRConfig();
   const router = useRouter();
 
   const DEFAULT_COLORS = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e'];
@@ -69,7 +70,12 @@ export default function CategoriesClient() {
         setError(res.error);
         toast.error(res.error);
       } else {
-        mutate('categories');
+        await Promise.all([
+          mutate('categories'),
+          mutate('summary'),
+          mutate('recentTx'),
+          mutate(key => Array.isArray(key) && key[0] === 'transactions-list'),
+        ]);
         setIsModalOpen(false);
         toast.success(editingId ? "Category updated successfully" : "Category created successfully");
       }
@@ -88,7 +94,12 @@ export default function CategoriesClient() {
       if (res.error) {
         toast.error(res.error);
       } else {
-        mutate('categories');
+        await Promise.all([
+          mutate('categories'),
+          mutate('summary'),
+          mutate('recentTx'),
+          mutate(key => Array.isArray(key) && key[0] === 'transactions-list'),
+        ]);
         if (res.message) toast.success(res.message);
         else toast.success("Category deleted successfully");
         setDeleteConfirmId(null);

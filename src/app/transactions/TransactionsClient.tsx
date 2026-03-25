@@ -10,7 +10,7 @@ import { Plus, Edit2, Trash2, ArrowUpRight, ArrowDownRight, RefreshCw } from 'lu
 import { Account, Category, Transaction } from '@prisma/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import useSWR, { mutate as globalMutate } from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 import { startOfMonth, endOfMonth, parseISO, isValid } from 'date-fns';
 import { X, PlusCircle } from 'lucide-react';
 import { createCategory } from '@/actions/category';
@@ -40,10 +40,28 @@ export default function TransactionsClient() {
 
   const { data, mutate } = useSWR(
     mounted ? ['transactions-list', page, type, categoryId, accountId, startStr, endStr] : null, 
-    () => getTransactions(page, 50, { type, categoryId, accountId, startDate, endDate })
+    () => getTransactions(page, 50, { type, categoryId, accountId, startDate, endDate }).then(res => ({
+      ...res,
+      transactions: res.transactions as PopulatedTransaction[]
+    }))
   );
   const { data: accounts } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
   const { data: categories } = useSWR(mounted ? 'categories' : null, () => getCategories());
+  const { mutate: globalMutate } = useSWRConfig();
+
+  const refreshAppData = async () => {
+    // Refresh all data that depends on transactions
+    mutate(); // Refresh the current transaction list
+    const currentMonth = new Date().toISOString().substring(0, 7); // yyyy-MM
+    await Promise.all([
+      globalMutate(['summary', 'this_month']),
+      globalMutate('accounts'),
+      globalMutate('recentTx'),
+      globalMutate('recent-trends'),
+      globalMutate(['monthly-summary', currentMonth]),
+      globalMutate(['budgetVsActual', currentMonth]),
+    ]);
+  };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isQuickCategoryModalOpen, setIsQuickCategoryModalOpen] = useState(false);
@@ -98,7 +116,7 @@ export default function TransactionsClient() {
         toast.success(`Deleted ${selectedIds.size} transactions`);
         setSelectedIds(new Set());
         setIsBulkDeleteModalOpen(false);
-        mutate();
+        refreshAppData();
       }
     });
   };
@@ -137,7 +155,7 @@ export default function TransactionsClient() {
       } else {
         setIsModalOpen(false);
         toast.success(editingId ? "Transaction updated successfully" : "Transaction created successfully");
-        mutate(); // use SWR mutate instead of router.refresh() for instant feedback
+        refreshAppData(); // use global refresh instead of just local mutate
       }
     });
   }
@@ -155,7 +173,7 @@ export default function TransactionsClient() {
       } else {
         toast.success("Transaction deleted successfully");
         setDeleteConfirmId(null);
-        mutate();
+        refreshAppData();
       }
     });
   }
