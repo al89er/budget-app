@@ -49,12 +49,13 @@ export default function TransactionsClient() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const { data, mutate } = useSWR(
+  const { data, mutate, isValidating } = useSWR(
     mounted ? ['transactions-list', page, type, categoryId, accountId, startStr, endStr, debouncedSearch] : null, 
     () => getTransactions(page, 50, { type, categoryId, accountId, startDate, endDate, search: debouncedSearch }).then(res => ({
       ...res,
       transactions: res.transactions as PopulatedTransaction[]
-    }))
+    })),
+    { keepPreviousData: true }
   );
   const { data: accounts } = useSWR(mounted ? 'accounts' : null, () => getAccounts());
   const { data: categories } = useSWR(mounted ? 'categories' : null, () => getCategories());
@@ -89,7 +90,8 @@ export default function TransactionsClient() {
   const [randomCategoryColor, setRandomCategoryColor] = useState('#3b82f6');
   const DEFAULT_COLORS = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e'];
 
-  if (!mounted || !data || !accounts || !categories) {
+  // Strict guard for initial load to satisfy TypeScript narrowing
+  if (!mounted || !accounts || !categories || !data) {
     return (
       <div className="h-64 flex flex-col items-center justify-center text-surface-500 animate-pulse">
         <RefreshCw className="h-8 w-8 animate-spin mb-4 text-brand-500" />
@@ -97,6 +99,9 @@ export default function TransactionsClient() {
       </div>
     );
   }
+
+  // At this point, data, accounts, and categories are guaranteed to be defined
+  const { transactions, total, totalPages } = data;
 
   const { transactions, totalPages } = data;
 
@@ -255,6 +260,11 @@ export default function TransactionsClient() {
                   <X className="h-4 w-4" />
                 </button>
               )}
+              {isValidating && (
+                <div className={`absolute ${searchTerm ? 'right-10' : 'right-3'} top-1/2 -translate-y-1/2`}>
+                  <RefreshCw className="h-3 w-3 animate-spin text-brand-500" />
+                </div>
+              )}
             </div>
           </div>
           {(accountId || categoryId || type || startDate || endDate) && (
@@ -390,7 +400,7 @@ export default function TransactionsClient() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className={`overflow-x-auto transition-opacity duration-200 ${isValidating ? 'opacity-60' : 'opacity-100'}`}>
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-surface-500 uppercase bg-surface-50 border-b border-surface-200">
               <tr>
