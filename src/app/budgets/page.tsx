@@ -12,10 +12,7 @@ export default async function BudgetsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-surface-900">Budgets</h1>
-        <p className="text-surface-500">Plan and track your monthly spending targets.</p>
-      </div>
+      {/* Header handled by BudgetsClient */}
 
       <BudgetsClient 
         initialBudgets={budgets} 

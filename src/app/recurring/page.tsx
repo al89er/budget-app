@@ -5,10 +5,7 @@ import { Card } from '@/components/ui';
 export default function RecurringPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-surface-900">Recurring Transactions</h1>
-        <p className="text-surface-500">Automate your regular income, expenses, and transfers.</p>
-      </div>
+      {/* Header handled by RecurringClient */}
 
       <Suspense fallback={<RecurringSkeleton />}>
         <RecurringClient />

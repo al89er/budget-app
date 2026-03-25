@@ -6,10 +6,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-surface-900">Settings</h1>
-        <p className="text-surface-500">Manage your application preferences and data.</p>
-      </div>
+      {/* Header handled by SettingsClient */}
 
       <SettingsClient initialSettings={settings} />
     </div>

@@ -36,7 +36,7 @@ export default function Sidebar() {
   if (!mounted) return null;
 
   return (
-    <div className="hidden md:flex fixed inset-y-0 left-0 z-40 w-72 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 border-none">
+    <div className="hidden md:flex fixed inset-y-0 left-0 z-40 w-72 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 border-none opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto">
       <div className="flex flex-col h-full w-full pt-8 pb-10 px-6">
         {/* Logo Area */}
         <div className="mb-14 px-4">

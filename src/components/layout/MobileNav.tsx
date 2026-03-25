@@ -24,7 +24,7 @@ export default function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="md:hidden fixed bottom-6 left-6 right-6 h-20 bg-background rounded-[32px] nm-flat z-50 flex items-center justify-around px-2 border-none">
+    <nav className="md:hidden fixed bottom-6 left-4 right-4 h-20 bg-background/80 backdrop-blur-xl rounded-[32px] nm-flat z-50 flex items-center justify-around px-2 border-none">
       {navigation.map((item) => {
         const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
         const Icon = item.icon;
@@ -40,7 +40,7 @@ export default function MobileNav() {
           >
             <div className={cn(
               "p-3 rounded-2xl transition-all duration-500 mb-1",
-              isActive ? "nm-inset scale-110" : "hover:nm-button-hover"
+              isActive ? "nm-inset scale-105" : "hover:nm-button-hover"
             )}>
               <Icon 
                 className={cn("h-5 w-5 transition-transform duration-300")} 
