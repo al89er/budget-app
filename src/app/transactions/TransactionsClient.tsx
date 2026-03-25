@@ -103,8 +103,6 @@ export default function TransactionsClient() {
   // At this point, data, accounts, and categories are guaranteed to be defined
   const { transactions, total, totalPages } = data;
 
-  const { transactions, totalPages } = data;
-
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
